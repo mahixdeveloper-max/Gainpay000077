@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "phone": { "type": "string" },
+        "walletAddress": { "type": "string" },
+        "encryptedPrivateKey": { "type": "string" },
+        "balance": { "type": "number" },
+        "isBlocked": { "type": "boolean" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "number" },
+        "upiId": { "type": "string" },
+        "referralCode": { "type": "string" },
+        "referredBy": { "type": "string" }
+      },
+      "required": ["uid", "phone", "walletAddress", "encryptedPrivateKey", "balance", "isBlocked", "role", "createdAt", "referralCode"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Transaction record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "buy", "sell", "transfer"] },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "completed"] },
+        "txHash": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "utr": { "type": "string" },
+        "method": { "type": "string", "enum": ["UPI", "USDT"] }
+      },
+      "required": ["userId", "type", "amount", "status", "createdAt"]
+    },
+    "BuyRequest": {
+      "title": "BuyRequest",
+      "description": "UPI Buy Request",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "utr": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "amount", "status", "utr", "createdAt"]
+    },
+    "SellRequest": {
+      "title": "SellRequest",
+      "description": "UPI Sell Request",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "upiId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "amount", "status", "upiId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "UserProfile", "description": "User profiles" },
+    "/transactions/{txId}": { "schema": "Transaction", "description": "Transaction history" },
+    "/buyRequests/{requestId}": { "schema": "BuyRequest", "description": "Buy requests" },
+    "/sellRequests/{requestId}": { "schema": "SellRequest", "description": "Sell requests" }
+  }
+}

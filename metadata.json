@@ -1,0 +1,5 @@
+{
+  "name": "Gainpay",
+  "description": "A fully functional crypto payment application with TRON wallet integration, UPI buy/sell, and a comprehensive admin dashboard.",
+  "requestFramePermissions": []
+}

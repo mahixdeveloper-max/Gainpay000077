@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - phone: string (required)
+    //   - walletAddress: string (required)
+    //   - encryptedPrivateKey: string (required)
+    //   - balance: number (required)
+    //   - isBlocked: boolean (required)
+    //   - role: string (required, enum: ["admin", "user"])
+    //   - createdAt: number (required)
+    //   - referralCode: string (required)
+    //   - referredBy: string (optional)
+    //   - upiId: string (optional)
+    //
+    // Collection: transactions
+    // Document ID: {txId}
+    // Fields:
+    //   - userId: string (required)
+    //   - type: string (required, enum: ["deposit", "buy", "sell", "transfer"])
+    //   - amount: number (required)
+    //   - status: string (required, enum: ["pending", "approved", "rejected", "completed"])
+    //   - txHash: string (optional)
+    //   - createdAt: number (required)
+    //   - utr: string (optional)
+    //   - method: string (optional, enum: ["UPI", "USDT"])
+    //
+    // Collection: buyRequests
+    // Document ID: {requestId}
+    // Fields:
+    //   - userId: string (required)
+    //   - amount: number (required)
+    //   - status: string (required, enum: ["pending", "approved", "rejected"])
+    //   - utr: string (required)
+    //   - createdAt: number (required)
+    //
+    // Collection: sellRequests
+    // Document ID: {requestId}
+    // Fields:
+    //   - userId: string (required)
+    //   - amount: number (required)
+    //   - status: string (required, enum: ["pending", "approved", "rejected"])
+    //   - upiId: string (required)
+    //   - createdAt: number (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "moddagudurapukara@gmail.com" && request.auth.token.email_verified == true) ||
+          (request.auth.token.email == "6491643491@gainpay.com"));
+    }
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'phone', 'walletAddress', 'encryptedPrivateKey', 'balance', 'isBlocked', 'role', 'createdAt', 'referralCode']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.phone is string && data.phone.size() >= 10 && data.phone.size() <= 15 &&
+             data.walletAddress is string &&
+             data.encryptedPrivateKey is string &&
+             data.balance is number && data.balance >= 0 &&
+             data.isBlocked is bool &&
+             data.role in ['admin', 'user'] &&
+             data.createdAt is number &&
+             data.referralCode is string;
+    }
+
+    function isValidTransaction(data) {
+      return hasRequiredFields(['userId', 'type', 'amount', 'status', 'createdAt']) &&
+             data.userId is string &&
+             data.type in ['deposit', 'buy', 'sell', 'transfer'] &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['pending', 'approved', 'rejected', 'completed'] &&
+             data.createdAt is number;
+    }
+
+    function isValidBuyRequest(data) {
+      return hasRequiredFields(['userId', 'amount', 'status', 'utr', 'createdAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.utr is string && data.utr.size() >= 10 &&
+             data.createdAt is number;
+    }
+
+    function isValidSellRequest(data) {
+      return hasRequiredFields(['userId', 'amount', 'status', 'upiId', 'createdAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.upiId is string &&
+             data.createdAt is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if isAdmin() || (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role && request.resource.data.balance == resource.data.balance);
+    }
+
+    // Transactions
+    match /transactions/{txId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin() && isValidTransaction(request.resource.data);
+      allow update: if isAdmin() && isValidTransaction(request.resource.data);
+    }
+
+    // Buy Requests
+    match /buyRequests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidBuyRequest(request.resource.data) && request.resource.data.status == 'pending';
+      allow update: if isAdmin() && isValidBuyRequest(request.resource.data);
+    }
+
+    // Sell Requests
+    match /sellRequests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidSellRequest(request.resource.data) && request.resource.data.status == 'pending';
+      allow update: if isAdmin() && isValidSellRequest(request.resource.data);
+    }
+  }
+}

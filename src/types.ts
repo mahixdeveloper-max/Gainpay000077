@@ -1,0 +1,43 @@
+export interface UserProfile {
+  uid: string;
+  phone: string;
+  walletAddress: string;
+  encryptedPrivateKey: string;
+  balance: number;
+  isBlocked: boolean;
+  role: "admin" | "user";
+  createdAt: number;
+  upiId?: string;
+  referralCode: string;
+  referredBy?: string;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: "deposit" | "buy" | "sell" | "transfer";
+  amount: number;
+  status: "pending" | "approved" | "rejected" | "completed";
+  txHash?: string;
+  createdAt: number;
+  utr?: string; // For UPI
+  method?: "UPI" | "USDT";
+}
+
+export interface SellRequest {
+  id: string;
+  userId: string;
+  amount: number;
+  status: "pending" | "approved" | "rejected";
+  upiId: string;
+  createdAt: number;
+}
+
+export interface BuyRequest {
+  id: string;
+  userId: string;
+  amount: number;
+  status: "pending" | "approved" | "rejected";
+  utr: string;
+  createdAt: number;
+}
