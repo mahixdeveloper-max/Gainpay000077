@@ -38,6 +38,13 @@ export interface BuyRequest {
   userId: string;
   amount: number;
   status: "pending" | "approved" | "rejected";
-  utr: string;
+  utr?: string;
+  screenshot?: string; // Base64 or URL
+  userUpiId?: string;
   createdAt: number;
+}
+
+export interface AppSettings {
+  adminUpiId: string;
+  imgbbApiKey?: string;
 }

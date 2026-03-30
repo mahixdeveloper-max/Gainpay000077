@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
 import { auth, db, handleFirestoreError, OperationType } from "../../lib/firebase";
-import { collection, query, getDocs, updateDoc, doc, onSnapshot, addDoc, increment, where } from "firebase/firestore";
+import { collection, query, getDocs, updateDoc, doc, onSnapshot, addDoc, increment, where, setDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { UserProfile, Transaction, BuyRequest, SellRequest } from "../../types";
-import { Users, CreditCard, ShoppingCart, History, Check, X, Ban, Unlock, TrendingUp, LogOut } from "lucide-react";
+import { Users, CreditCard, ShoppingCart, History, Check, X, Ban, Unlock, TrendingUp, LogOut, Settings, Save } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { AppSettings } from "../../types";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [buyRequests, setBuyRequests] = useState<BuyRequest[]>([]);
   const [sellRequests, setSellRequests] = useState<SellRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<"users" | "buys" | "sells" | "txs">("users");
+  const [settings, setSettings] = useState<AppSettings>({ adminUpiId: "6491643491@upi" });
+  const [activeTab, setActiveTab] = useState<"users" | "buys" | "sells" | "txs" | "settings">("users");
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -41,14 +45,36 @@ export default function AdminDashboard() {
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, "sellRequests");
     });
+    const unsubSettings = onSnapshot(doc(db, "config", "settings"), (snap) => {
+      if (snap.exists()) {
+        setSettings(snap.data() as AppSettings);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "config/settings");
+    });
 
     return () => {
       unsubUsers();
       unsubTxs();
       unsubBuys();
       unsubSells();
+      unsubSettings();
     };
   }, []);
+
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    try {
+      await setDoc(doc(db, "config", "settings"), settings, { merge: true });
+      alert("Settings updated successfully!");
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      alert("Failed to save settings. Check console for details.");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const handleBlockUser = async (uid: string, isBlocked: boolean) => {
     const path = `users/${uid}`;
@@ -61,8 +87,12 @@ export default function AdminDashboard() {
 
   const handleApproveBuy = async (request: BuyRequest) => {
     const user = users.find(u => u.uid === request.userId);
-    if (!user) return;
+    if (!user) {
+      alert("User not found!");
+      return;
+    }
 
+    setProcessingId(request.id);
     try {
       // 1. Update user balance
       await updateDoc(doc(db, "users", request.userId), { 
@@ -84,67 +114,87 @@ export default function AdminDashboard() {
 
       // 4. Referral Commission Logic (Level 1)
       if (user.referredBy) {
-        const l1Query = query(collection(db, "users"), where("referralCode", "==", user.referredBy));
-        const l1Snap = await getDocs(l1Query);
-        
-        if (!l1Snap.empty) {
-          const l1UserDoc = l1Snap.docs[0];
-          const l1User = l1UserDoc.data() as UserProfile;
-          const l1Commission = request.amount * 0.003; // 0.3%
+        try {
+          const l1Query = query(collection(db, "users"), where("referralCode", "==", user.referredBy));
+          const l1Snap = await getDocs(l1Query);
+          
+          if (!l1Snap.empty) {
+            const l1UserDoc = l1Snap.docs[0];
+            const l1User = l1UserDoc.data() as UserProfile;
+            const l1Commission = request.amount * 0.003; // 0.3%
 
-          if (l1Commission > 0) {
-            await updateDoc(doc(db, "users", l1UserDoc.id), {
-              balance: increment(l1Commission)
-            });
+            if (l1Commission > 0) {
+              await updateDoc(doc(db, "users", l1UserDoc.id), {
+                balance: increment(l1Commission)
+              });
 
-            await addDoc(collection(db, "transactions"), {
-              userId: l1UserDoc.id,
-              type: "commission",
-              amount: l1Commission,
-              status: "completed",
-              createdAt: Date.now(),
-              description: `Level 1 referral commission from ${user.phone}`
-            });
+              await addDoc(collection(db, "transactions"), {
+                userId: l1UserDoc.id,
+                type: "commission",
+                amount: l1Commission,
+                status: "completed",
+                createdAt: Date.now(),
+                description: `Level 1 referral commission from ${user.phone}`
+              });
 
-            // 5. Referral Commission Logic (Level 2)
-            if (l1User.referredBy) {
-              const l2Query = query(collection(db, "users"), where("referralCode", "==", l1User.referredBy));
-              const l2Snap = await getDocs(l2Query);
+              // 5. Referral Commission Logic (Level 2)
+              if (l1User.referredBy) {
+                const l2Query = query(collection(db, "users"), where("referralCode", "==", l1User.referredBy));
+                const l2Snap = await getDocs(l2Query);
 
-              if (!l2Snap.empty) {
-                const l2UserDoc = l2Snap.docs[0];
-                const l2Commission = request.amount * 0.001; // 0.1%
+                if (!l2Snap.empty) {
+                  const l2UserDoc = l2Snap.docs[0];
+                  const l2Commission = request.amount * 0.001; // 0.1%
 
-                if (l2Commission > 0) {
-                  await updateDoc(doc(db, "users", l2UserDoc.id), {
-                    balance: increment(l2Commission)
-                  });
+                  if (l2Commission > 0) {
+                    await updateDoc(doc(db, "users", l2UserDoc.id), {
+                      balance: increment(l2Commission)
+                    });
 
-                  await addDoc(collection(db, "transactions"), {
-                    userId: l2UserDoc.id,
-                    type: "commission",
-                    amount: l2Commission,
-                    status: "completed",
-                    createdAt: Date.now(),
-                    description: `Level 2 referral commission from ${user.phone}`
-                  });
+                    await addDoc(collection(db, "transactions"), {
+                      userId: l2UserDoc.id,
+                      type: "commission",
+                      amount: l2Commission,
+                      status: "completed",
+                      createdAt: Date.now(),
+                      description: `Level 2 referral commission from ${user.phone}`
+                    });
+                  }
                 }
               }
             }
           }
+        } catch (refError) {
+          console.error("Referral commission error:", refError);
+          // Don't block the main approval if referral fails
         }
       }
+      alert("Buy request approved!");
     } catch (error) {
       console.error("Error approving buy request:", error);
+      alert("Failed to approve request: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setProcessingId(null);
     }
   };
 
   const handleApproveSell = async (request: SellRequest) => {
     const user = users.find(u => u.uid === request.userId);
-    if (user && user.balance >= request.amount) {
+    if (!user) {
+      alert("User not found!");
+      return;
+    }
+    
+    if (user.balance < request.amount) {
+      alert("Insufficient user balance!");
+      return;
+    }
+
+    setProcessingId(request.id);
+    try {
       await updateDoc(doc(db, "users", request.userId), { balance: increment(-request.amount) });
       await updateDoc(doc(db, "sellRequests", request.id), { status: "approved" });
-      // Add transaction
+      
       await addDoc(collection(db, "transactions"), {
         userId: request.userId,
         type: "sell",
@@ -153,15 +203,39 @@ export default function AdminDashboard() {
         createdAt: Date.now(),
         method: "UPI"
       });
+      alert("Sell request approved!");
+    } catch (error) {
+      console.error("Error approving sell request:", error);
+      alert("Failed to approve sell request: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setProcessingId(null);
     }
   };
 
   const handleRejectBuy = async (id: string) => {
-    await updateDoc(doc(db, "buyRequests", id), { status: "rejected" });
+    setProcessingId(id);
+    try {
+      await updateDoc(doc(db, "buyRequests", id), { status: "rejected" });
+      alert("Buy request rejected.");
+    } catch (error) {
+      console.error("Error rejecting buy request:", error);
+      alert("Failed to reject request: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const handleRejectSell = async (id: string) => {
-    await updateDoc(doc(db, "sellRequests", id), { status: "rejected" });
+    setProcessingId(id);
+    try {
+      await updateDoc(doc(db, "sellRequests", id), { status: "rejected" });
+      alert("Sell request rejected.");
+    } catch (error) {
+      console.error("Error rejecting sell request:", error);
+      alert("Failed to reject sell request: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -233,6 +307,13 @@ export default function AdminDashboard() {
             <History size={18} />
             <span>History</span>
           </button>
+          <button 
+            onClick={() => setActiveTab("settings")}
+            className={cn("flex items-center space-x-3 p-3 rounded-xl text-sm font-black transition-all whitespace-nowrap md:w-full", activeTab === "settings" ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-gray-500 hover:bg-gray-50")}
+          >
+            <Settings size={18} />
+            <span>Settings</span>
+          </button>
         </div>
 
         {/* Content */}
@@ -278,30 +359,95 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {activeTab === "settings" && (
+            <div className="max-w-2xl space-y-8">
+              <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">App Settings</h2>
+              
+              <form onSubmit={handleUpdateSettings} className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Admin UPI ID</label>
+                    <input 
+                      type="text"
+                      value={settings.adminUpiId}
+                      onChange={(e) => setSettings({ ...settings, adminUpiId: e.target.value })}
+                      placeholder="e.g. 1234567890@upi"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      required
+                    />
+                    <p className="text-[9px] font-bold text-gray-400 uppercase ml-2">This UPI ID will be shown to users for payments.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">ImgBB API Key</label>
+                    <input 
+                      type="text"
+                      value={settings.imgbbApiKey || ""}
+                      onChange={(e) => setSettings({ ...settings, imgbbApiKey: e.target.value })}
+                      placeholder="Your ImgBB API Key"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                    <p className="text-[9px] font-bold text-gray-400 uppercase ml-2">If provided, screenshots will be uploaded to ImgBB instead of stored in Firestore.</p>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={savingSettings}
+                  className="w-full bg-blue-600 text-white py-4 rounded-xl text-xs font-black shadow-lg shadow-blue-100 active:scale-95 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 uppercase tracking-widest"
+                >
+                  <Save size={16} />
+                  <span>{savingSettings ? "Saving..." : "Save Settings"}</span>
+                </button>
+              </form>
+            </div>
+          )}
+
           {activeTab === "buys" && (
             <div className="space-y-6">
               <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Buy Requests (UPI)</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {buyRequests.filter(r => r.status === "pending").map(r => (
                   <div key={r.id} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">UTR: {r.utr}</span>
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">User: {users.find(u => u.uid === r.userId)?.phone}</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">User UPI: {r.userUpiId || "N/A"}</p>
+                        {r.utr && <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">UTR: {r.utr}</p>}
+                      </div>
                       <span className="text-lg font-black text-blue-600">₹{r.amount}</span>
                     </div>
+
+                    {r.screenshot && (
+                      <div className="relative group">
+                        <img 
+                          src={r.screenshot} 
+                          alt="Payment Screenshot" 
+                          className="w-full h-40 object-cover rounded-xl border border-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => window.open(r.screenshot, "_blank")}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-xl pointer-events-none">
+                          <span className="text-white text-[10px] font-black uppercase tracking-widest bg-black/50 px-3 py-1 rounded-full">Click to view full</span>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex space-x-2">
                       <button 
                         onClick={() => handleApproveBuy(r)}
-                        className="flex-1 bg-green-600 text-white py-3 rounded-xl text-xs font-black shadow-lg shadow-green-100 flex items-center justify-center space-x-2"
+                        disabled={processingId === r.id}
+                        className="flex-1 bg-green-600 text-white py-3 rounded-xl text-xs font-black shadow-lg shadow-green-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                       >
                         <Check size={14} />
-                        <span>Approve</span>
+                        <span>{processingId === r.id ? "..." : "Approve"}</span>
                       </button>
                       <button 
                         onClick={() => handleRejectBuy(r.id)}
-                        className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl text-xs font-black border border-red-100 flex items-center justify-center space-x-2"
+                        disabled={processingId === r.id}
+                        className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl text-xs font-black border border-red-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                       >
                         <X size={14} />
-                        <span>Reject</span>
+                        <span>{processingId === r.id ? "..." : "Reject"}</span>
                       </button>
                     </div>
                   </div>
@@ -326,17 +472,19 @@ export default function AdminDashboard() {
                     <div className="flex space-x-2">
                       <button 
                         onClick={() => handleApproveSell(r)}
-                        className="flex-1 bg-green-600 text-white py-3 rounded-xl text-xs font-black shadow-lg shadow-green-100 flex items-center justify-center space-x-2"
+                        disabled={processingId === r.id}
+                        className="flex-1 bg-green-600 text-white py-3 rounded-xl text-xs font-black shadow-lg shadow-green-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                       >
                         <Check size={14} />
-                        <span>Approve</span>
+                        <span>{processingId === r.id ? "..." : "Approve"}</span>
                       </button>
                       <button 
                         onClick={() => handleRejectSell(r.id)}
-                        className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl text-xs font-black border border-red-100 flex items-center justify-center space-x-2"
+                        disabled={processingId === r.id}
+                        className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl text-xs font-black border border-red-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                       >
                         <X size={14} />
-                        <span>Reject</span>
+                        <span>{processingId === r.id ? "..." : "Reject"}</span>
                       </button>
                     </div>
                   </div>

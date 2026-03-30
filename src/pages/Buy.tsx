@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import { UserProfile } from "../types";
+import React, { useState, useEffect } from "react";
+import { UserProfile, AppSettings } from "../types";
 import { QRCodeSVG } from "qrcode.react";
 import { Copy, Download, Search, ChevronUp, ChevronDown, Globe, X, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, doc, onSnapshot } from "firebase/firestore";
 
 interface BuyProps {
   profile: UserProfile | null;
@@ -16,8 +16,31 @@ export default function Buy({ profile }: BuyProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState(0);
   const [utr, setUtr] = useState("");
+  const [userUpiId, setUserUpiId] = useState(profile?.upiId || "");
+  const [screenshot, setScreenshot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>({ adminUpiId: "6491643491@upi" });
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "config", "settings"), (snap) => {
+      if (snap.exists()) {
+        setSettings(snap.data() as AppSettings);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshot(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -31,16 +54,46 @@ export default function Buy({ profile }: BuyProps) {
 
   const handleConfirmBuy = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile || !utr) return;
+    if (!profile || (!utr && !screenshot)) return;
 
     setLoading(true);
     const path = "buyRequests";
     try {
+      let finalScreenshot = screenshot || "";
+
+      // Upload to ImgBB if API key is present
+      if (screenshot && settings.imgbbApiKey) {
+        try {
+          // Remove data:image/xxx;base64, prefix
+          const base64Data = screenshot.split(",")[1];
+          const formData = new FormData();
+          formData.append("image", base64Data);
+
+          const response = await fetch(`https://api.imgbb.com/1/upload?key=${settings.imgbbApiKey}`, {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            finalScreenshot = result.data.url;
+          } else {
+            console.error("ImgBB upload failed:", result.error);
+            // Fallback to base64 if upload fails
+          }
+        } catch (uploadError) {
+          console.error("Error uploading to ImgBB:", uploadError);
+          // Fallback to base64
+        }
+      }
+
       await addDoc(collection(db, path), {
         userId: profile.uid,
         amount: selectedAmount,
         status: "pending",
-        utr: utr,
+        utr: utr || "",
+        screenshot: finalScreenshot,
+        userUpiId: userUpiId,
         createdAt: Date.now(),
       });
       setSuccess(true);
@@ -48,6 +101,7 @@ export default function Buy({ profile }: BuyProps) {
         setShowConfirmModal(false);
         setSuccess(false);
         setUtr("");
+        setScreenshot(null);
       }, 3000);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
@@ -239,8 +293,8 @@ export default function Buy({ profile }: BuyProps) {
                 <div className="bg-blue-50 p-4 rounded-2xl space-y-2">
                   <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">Pay to Admin UPI</p>
                   <div className="flex items-center justify-center space-x-2">
-                    <p className="text-lg font-black text-blue-600 tracking-tight">6491643491@upi</p>
-                    <button onClick={() => copyToClipboard("6491643491@upi")} className="text-blue-400">
+                    <p className="text-lg font-black text-blue-600 tracking-tight">{settings.adminUpiId}</p>
+                    <button onClick={() => copyToClipboard(settings.adminUpiId)} className="text-blue-400">
                       <Copy size={14} />
                     </button>
                   </div>
@@ -254,27 +308,60 @@ export default function Buy({ profile }: BuyProps) {
 
                   <form onSubmit={handleConfirmBuy} className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Enter UTR Number</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Your UPI ID</label>
                       <input
                         type="text"
-                        placeholder="12-digit UTR number"
+                        placeholder="Enter your UPI ID"
                         className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                        value={utr}
-                        onChange={(e) => setUtr(e.target.value)}
+                        value={userUpiId}
+                        onChange={(e) => setUserUpiId(e.target.value)}
                         required
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Upload Screenshot</label>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="hidden"
+                          id="screenshot-upload"
+                          required={!utr}
+                        />
+                        <label 
+                          htmlFor="screenshot-upload"
+                          className={cn(
+                            "w-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl py-8 px-4 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 transition-all",
+                            screenshot && "border-blue-500 bg-blue-50"
+                          )}
+                        >
+                          {screenshot ? (
+                            <div className="flex flex-col items-center space-y-2">
+                              <img src={screenshot} alt="Preview" className="w-20 h-20 object-cover rounded-lg" />
+                              <span className="text-[10px] font-black text-blue-600 uppercase">Change Photo</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center space-y-2">
+                              <Download size={24} className="text-gray-400" />
+                              <span className="text-[10px] font-black text-gray-400 uppercase">Click to upload screenshot</span>
+                            </div>
+                          )}
+                        </label>
+                      </div>
                     </div>
                     
                     <div className="bg-orange-50 p-3 rounded-xl flex items-start space-x-2">
                       <AlertCircle size={14} className="text-orange-500 mt-0.5 shrink-0" />
                       <p className="text-[9px] font-bold text-orange-600 uppercase leading-relaxed">
-                        Please double check the UTR number. Incorrect UTR will lead to rejection of your request.
+                        Please upload a clear screenshot of your payment. Incorrect or fake screenshots will lead to rejection.
                       </p>
                     </div>
 
                     <button
                       type="submit"
-                      disabled={loading || !utr}
+                      disabled={loading || (!utr && !screenshot)}
                       className="w-full bg-blue-600 text-white py-4 rounded-xl text-xs font-black shadow-lg shadow-blue-100 active:scale-95 transition-all disabled:opacity-50 uppercase tracking-widest"
                     >
                       {loading ? "Submitting..." : "I Have Paid"}
