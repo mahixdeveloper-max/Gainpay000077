@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [newOrderAmount, setNewOrderAmount] = useState("");
   const [newOrderUpiId, setNewOrderUpiId] = useState("");
+  const [newOrderRewardPercent, setNewOrderRewardPercent] = useState("4.5");
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
@@ -104,9 +105,12 @@ export default function AdminDashboard() {
 
     setProcessingId(request.id);
     try {
+      const rewardPercent = request.rewardPercent || 4.5;
+      const totalAmount = request.amount * (1 + rewardPercent / 100);
+
       // 1. Update user balance
       await updateDoc(doc(db, "users", request.userId), { 
-        balance: increment(request.amount) 
+        balance: increment(totalAmount) 
       });
       
       // 2. Update request status
@@ -121,7 +125,7 @@ export default function AdminDashboard() {
       await addDoc(collection(db, "transactions"), {
         userId: request.userId,
         type: "buy",
-        amount: request.amount,
+        amount: totalAmount,
         status: "completed",
         createdAt: Date.now(),
         method: "UPI"
@@ -262,18 +266,21 @@ export default function AdminDashboard() {
   const handleAddBuyOption = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number(newOrderAmount);
+    const reward = Number(newOrderRewardPercent);
     if (isNaN(amt) || amt <= 0) return;
 
     try {
       await addDoc(collection(db, "buyOptions"), {
         amount: amt,
         upiId: newOrderUpiId || settings.adminUpiId,
+        rewardPercent: isNaN(reward) ? 4.5 : reward,
         status: "available",
         createdAt: Date.now(),
         orderNo: Math.floor(Math.random() * 10000000000000000).toString()
       });
       setNewOrderAmount("");
       setNewOrderUpiId("");
+      setNewOrderRewardPercent("4.5");
       alert("Order added successfully!");
     } catch (error) {
       console.error("Error adding order:", error);
@@ -397,10 +404,19 @@ export default function AdminDashboard() {
                   />
                   <input 
                     type="text"
-                    placeholder="Enter Order UPI ID (Optional)"
+                    placeholder="UPI ID (Optional)"
                     value={newOrderUpiId}
                     onChange={(e) => setNewOrderUpiId(e.target.value)}
                     className="flex-1 bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  />
+                  <input 
+                    type="number"
+                    step="0.1"
+                    placeholder="Reward %"
+                    value={newOrderRewardPercent}
+                    onChange={(e) => setNewOrderRewardPercent(e.target.value)}
+                    className="w-32 bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    required
                   />
                   <button 
                     type="submit"
@@ -419,7 +435,7 @@ export default function AdminDashboard() {
                     <div key={o.id} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center">
                       <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order No: {o.orderNo}</p>
-                        <p className="text-lg font-black text-gray-900">₹{o.amount}</p>
+                        <p className="text-lg font-black text-gray-900">₹{o.amount} <span className="text-xs text-green-600 ml-2">+{o.rewardPercent || 4.5}%</span></p>
                         {o.upiId && <p className="text-[10px] font-bold text-blue-500">{o.upiId}</p>}
                       </div>
                       <button 

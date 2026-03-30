@@ -96,11 +96,14 @@ export default function Buy({ profile }: BuyProps) {
         }
       }
 
-      const targetAdminUpiId = buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings.adminUpiId;
+      const selectedOption = buyOptions.find(o => o.id === selectedOptionId);
+      const targetAdminUpiId = selectedOption?.upiId || settings.adminUpiId;
+      const rewardPercent = selectedOption?.rewardPercent || 4.5;
 
       await addDoc(collection(db, path), {
         userId: profile.uid,
         amount: selectedAmount,
+        rewardPercent: rewardPercent,
         status: "pending",
         utr: utr || "",
         screenshot: finalScreenshot,
@@ -167,7 +170,7 @@ export default function Buy({ profile }: BuyProps) {
                 <div key={option.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
                   <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     <span>No:{option.orderNo}</span>
-                    <span>Reward 4.5%</span>
+                    <span>Reward {option.rewardPercent || 4.5}%</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
@@ -179,12 +182,12 @@ export default function Buy({ profile }: BuyProps) {
                       <span className="text-gray-300 font-bold">+</span>
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-gray-500 uppercase">Reward</p>
-                        <p className="text-lg font-black text-gray-800 tracking-tighter">{(option.amount * 0.045).toFixed(1)}</p>
+                        <p className="text-lg font-black text-gray-800 tracking-tighter">{(option.amount * (option.rewardPercent || 4.5) / 100).toFixed(1)}</p>
                       </div>
                       <span className="text-gray-300 font-bold">=</span>
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-blue-600 uppercase">Itoken</p>
-                        <p className="text-lg font-black text-blue-600 tracking-tighter">{(option.amount * 1.045).toFixed(2)}</p>
+                        <p className="text-lg font-black text-blue-600 tracking-tighter">{(option.amount * (1 + (option.rewardPercent || 4.5) / 100)).toFixed(2)}</p>
                       </div>
                     </div>
                     <button 

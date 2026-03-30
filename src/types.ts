@@ -43,6 +43,7 @@ export interface BuyRequest {
   userUpiId?: string;
   adminUpiId?: string; // The UPI ID the user was asked to pay to
   optionId?: string; // Link to BuyOption
+  rewardPercent?: number;
   createdAt: number;
 }
 
@@ -58,4 +59,5 @@ export interface BuyOption {
   createdAt: number;
   orderNo: string;
   upiId?: string;
+  rewardPercent?: number;
 }

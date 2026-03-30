@@ -44,6 +44,11 @@
         "amount": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "utr": { "type": "string" },
+        "screenshot": { "type": "string" },
+        "userUpiId": { "type": "string" },
+        "adminUpiId": { "type": "string" },
+        "optionId": { "type": "string" },
+        "rewardPercent": { "type": "number" },
         "createdAt": { "type": "number" }
       },
       "required": ["userId", "amount", "status", "utr", "createdAt"]
@@ -60,12 +65,27 @@
         "createdAt": { "type": "number" }
       },
       "required": ["userId", "amount", "status", "upiId", "createdAt"]
+    },
+    "BuyOption": {
+      "title": "BuyOption",
+      "description": "Available order for users to buy",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["available", "pending", "sold"] },
+        "createdAt": { "type": "number" },
+        "orderNo": { "type": "string" },
+        "upiId": { "type": "string" },
+        "rewardPercent": { "type": "number" }
+      },
+      "required": ["amount", "status", "createdAt", "orderNo"]
     }
   },
   "firestore": {
     "/users/{uid}": { "schema": "UserProfile", "description": "User profiles" },
     "/transactions/{txId}": { "schema": "Transaction", "description": "Transaction history" },
     "/buyRequests/{requestId}": { "schema": "BuyRequest", "description": "Buy requests" },
-    "/sellRequests/{requestId}": { "schema": "SellRequest", "description": "Sell requests" }
+    "/sellRequests/{requestId}": { "schema": "SellRequest", "description": "Sell requests" },
+    "/buyOptions/{optionId}": { "schema": "BuyOption", "description": "Available buy options" }
   }
 }

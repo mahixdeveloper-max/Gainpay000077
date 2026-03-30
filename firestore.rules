@@ -113,6 +113,7 @@ service cloud.firestore {
              (!('userUpiId' in data) || (data.userUpiId is string && data.userUpiId.size() <= 100)) &&
              (!('adminUpiId' in data) || (data.adminUpiId is string && data.adminUpiId.size() <= 100)) &&
              (!('optionId' in data) || (data.optionId is string)) &&
+             (!('rewardPercent' in data) || (data.rewardPercent is number)) &&
              data.createdAt is number;
     }
 
@@ -131,7 +132,8 @@ service cloud.firestore {
              data.status in ['available', 'pending', 'sold'] &&
              data.createdAt is number &&
              data.orderNo is string &&
-             (!('upiId' in data) || (data.upiId is string && data.upiId.size() <= 100));
+             (!('upiId' in data) || (data.upiId is string && data.upiId.size() <= 100)) &&
+             (!('rewardPercent' in data) || (data.rewardPercent is number));
     }
 
     // ===============================================================
