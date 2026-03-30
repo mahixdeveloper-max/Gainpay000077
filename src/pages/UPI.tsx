@@ -44,6 +44,19 @@ export default function UPI({ profile }: UPIProps) {
     e.preventDefault();
     if (!profile) return;
     if (!profile.upiId) return alert("Please link your UPI ID first!");
+
+    // Check for restrictions
+    if (profile.sellStatus === "stopped") {
+      return alert("Your UPI selling is currently stopped by admin.");
+    }
+    if (profile.sellStatus === "waiting") {
+      return alert("Your UPI selling is in waiting mode. Please try again later.");
+    }
+    if (profile.sellRestrictedUntil && profile.sellRestrictedUntil > Date.now()) {
+      const remainingMs = profile.sellRestrictedUntil - Date.now();
+      const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
+      return alert(`Selling is restricted for you. Please try again after ${remainingHours} hour(s).`);
+    }
     
     const amount = Number(sellAmount);
     if (isNaN(amount) || amount < 100) return alert("Minimum sell amount is 100 IToken");

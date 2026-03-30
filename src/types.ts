@@ -10,6 +10,8 @@ export interface UserProfile {
   upiId?: string;
   referralCode: string;
   referredBy?: string;
+  sellRestrictedUntil?: number;
+  sellStatus?: "active" | "waiting" | "stopped";
 }
 
 export interface Transaction {

@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   const [newOrderUpiId, setNewOrderUpiId] = useState("");
   const [newOrderRewardPercent, setNewOrderRewardPercent] = useState("4.5");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -91,6 +92,17 @@ export default function AdminDashboard() {
     const path = `users/${uid}`;
     try {
       await updateDoc(doc(db, "users", uid), { isBlocked: !isBlocked });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  };
+
+  const handleUpdateUserRestriction = async (uid: string, data: Partial<UserProfile>) => {
+    const path = `users/${uid}`;
+    try {
+      await updateDoc(doc(db, "users", uid), data);
+      setSelectedUser(null);
+      alert("User restrictions updated!");
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
@@ -481,7 +493,14 @@ export default function AdminDashboard() {
                             {u.isBlocked ? "Blocked" : "Active"}
                           </span>
                         </td>
-                        <td className="p-4 text-right">
+                        <td className="p-4 text-right space-x-2">
+                          <button 
+                            onClick={() => setSelectedUser(u)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Manage Restrictions"
+                          >
+                            <Settings size={18} />
+                          </button>
                           <button 
                             onClick={() => handleBlockUser(u.uid, u.isBlocked)}
                             className={cn("p-2 rounded-lg transition-all", u.isBlocked ? "text-green-600 hover:bg-green-50" : "text-red-600 hover:bg-red-50")}
@@ -679,6 +698,74 @@ export default function AdminDashboard() {
           {/* Similar sections for sells and txs */}
         </div>
       </div>
+
+      {/* User Restriction Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="p-8 space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight italic">Manage User: {selectedUser.phone}</h3>
+                <button onClick={() => setSelectedUser(null)} className="p-2 text-gray-400 hover:text-gray-600">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* UPI Status */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">UPI Selling Status</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["active", "waiting", "stopped"] as const).map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => handleUpdateUserRestriction(selectedUser.uid, { sellStatus: status })}
+                        className={cn(
+                          "py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                          selectedUser.sellStatus === status 
+                            ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-100" 
+                            : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50"
+                        )}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cooldown */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Sell Cooldown (Hours)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[1, 4, 5].map((hours) => (
+                      <button
+                        key={hours}
+                        onClick={() => handleUpdateUserRestriction(selectedUser.uid, { 
+                          sellRestrictedUntil: Date.now() + hours * 60 * 60 * 1000 
+                        })}
+                        className="py-3 bg-white text-gray-800 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
+                      >
+                        Stop for {hours}h
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => handleUpdateUserRestriction(selectedUser.uid, { sellRestrictedUntil: 0 })}
+                      className="py-3 bg-green-50 text-green-600 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all"
+                    >
+                      Clear Cooldown
+                    </button>
+                  </div>
+                  {selectedUser.sellRestrictedUntil && selectedUser.sellRestrictedUntil > Date.now() && (
+                    <p className="text-[10px] font-bold text-red-500 text-center uppercase tracking-tight">
+                      Currently restricted until: {new Date(selectedUser.sellRestrictedUntil).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

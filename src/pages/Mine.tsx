@@ -55,6 +55,7 @@ export default function Mine({ profile }: MineProps) {
     { name: "UPI Sell History", icon: History, color: "text-blue-500", bg: "bg-blue-50", path: "/history" },
     { name: "Buy History", icon: Calendar, color: "text-blue-600", bg: "bg-blue-50", path: "/history" },
     { name: "Transfer IToken History", icon: History, color: "text-blue-400", bg: "bg-blue-50", path: "/history" },
+    { name: "Event Center", icon: Calendar, color: "text-orange-500", bg: "bg-orange-50", path: "/event-center" },
     { name: "Official Service", icon: Headphones, color: "text-blue-600", bg: "bg-blue-50", onClick: () => setShowSupportModal(true) },
     { name: "Modify Password", icon: Lock, color: "text-blue-400", bg: "bg-blue-50", onClick: () => setShowPasswordModal(true) },
   ];
