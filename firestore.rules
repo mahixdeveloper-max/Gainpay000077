@@ -111,6 +111,7 @@ service cloud.firestore {
              (!('utr' in data) || (data.utr is string && data.utr.size() <= 100)) &&
              (!('screenshot' in data) || (data.screenshot is string && data.screenshot.size() <= 2000000)) &&
              (!('userUpiId' in data) || (data.userUpiId is string && data.userUpiId.size() <= 100)) &&
+             (!('optionId' in data) || (data.optionId is string)) &&
              data.createdAt is number;
     }
 
@@ -164,7 +165,9 @@ service cloud.firestore {
     // Buy Options
     match /buyOptions/{optionId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow update: if isAuthenticated() && 
+        (isAdmin() || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'pending' && resource.data.status == 'available'));
+      allow create, delete: if isAdmin();
     }
   }
 }

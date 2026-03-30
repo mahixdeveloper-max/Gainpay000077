@@ -159,16 +159,6 @@ export default function Buy({ profile }: BuyProps) {
         {activeTab === "UPI" ? (
           <div className="space-y-6">
             {/* UPI Tab Content */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="flex items-center space-x-2">
-                <ChevronUp size={16} className="text-blue-600" />
-                <ChevronDown size={16} className="text-blue-600" />
-                <span className="text-xs font-black text-gray-700 uppercase tracking-tighter">Min 100</span>
-                <span className="text-xs font-black text-gray-700 uppercase tracking-tighter ml-4">Max 100000</span>
-              </div>
-              <Search size={16} className="text-yellow-500" />
-            </div>
-
             <div className="space-y-4">
               {buyOptions.filter(o => o.status === "available").sort((a, b) => a.amount - b.amount).map((option) => (
                 <div key={option.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
