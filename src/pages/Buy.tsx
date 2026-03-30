@@ -305,7 +305,7 @@ export default function Buy({ profile }: BuyProps) {
                 </div>
 
                 <div className="bg-blue-50 p-4 rounded-2xl space-y-2">
-                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">Add Go Pay</p>
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">Go Pay</p>
                   <div className="flex items-center justify-center space-x-2">
                     <p className="text-lg font-black text-blue-600 tracking-tight">
                       {buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings.adminUpiId}
