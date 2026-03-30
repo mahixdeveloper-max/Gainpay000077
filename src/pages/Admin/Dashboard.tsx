@@ -262,11 +262,18 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRejectSell = async (id: string) => {
-    setProcessingId(id);
+  const handleRejectSell = async (request: SellRequest, hours?: number) => {
+    setProcessingId(request.id);
     try {
-      await updateDoc(doc(db, "sellRequests", id), { status: "rejected" });
-      alert("Sell request rejected.");
+      await updateDoc(doc(db, "sellRequests", request.id), { status: "rejected" });
+      
+      if (hours) {
+        await updateDoc(doc(db, "users", request.userId), {
+          sellRestrictedUntil: Date.now() + hours * 60 * 60 * 1000
+        });
+      }
+      
+      alert(`Sell request rejected${hours ? ` and user restricted for ${hours}h` : ""}.`);
     } catch (error) {
       console.error("Error rejecting sell request:", error);
       alert("Failed to reject sell request: " + (error instanceof Error ? error.message : "Unknown error"));
@@ -627,23 +634,50 @@ export default function AdminDashboard() {
                       </div>
                       <span className="text-lg font-black text-red-600">₹{r.amount}</span>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-col space-y-2">
                       <button 
                         onClick={() => handleApproveSell(r)}
                         disabled={processingId === r.id}
-                        className="flex-1 bg-green-600 text-white py-3 rounded-xl text-xs font-black shadow-lg shadow-green-100 flex items-center justify-center space-x-2 disabled:opacity-50"
+                        className="w-full bg-green-600 text-white py-3 rounded-xl text-xs font-black shadow-lg shadow-green-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                       >
                         <Check size={14} />
                         <span>{processingId === r.id ? "..." : "Approve"}</span>
                       </button>
-                      <button 
-                        onClick={() => handleRejectSell(r.id)}
-                        disabled={processingId === r.id}
-                        className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl text-xs font-black border border-red-100 flex items-center justify-center space-x-2 disabled:opacity-50"
-                      >
-                        <X size={14} />
-                        <span>{processingId === r.id ? "..." : "Reject"}</span>
-                      </button>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => handleRejectSell(r)}
+                          disabled={processingId === r.id}
+                          className="bg-red-50 text-red-600 py-3 rounded-xl text-[10px] font-black border border-red-100 flex items-center justify-center space-x-1 disabled:opacity-50"
+                        >
+                          <X size={12} />
+                          <span>Reject Only</span>
+                        </button>
+                        <button 
+                          onClick={() => handleRejectSell(r, 1)}
+                          disabled={processingId === r.id}
+                          className="bg-red-50 text-red-600 py-3 rounded-xl text-[10px] font-black border border-red-100 flex items-center justify-center space-x-1 disabled:opacity-50"
+                        >
+                          <X size={12} />
+                          <span>Reject + 1h</span>
+                        </button>
+                        <button 
+                          onClick={() => handleRejectSell(r, 4)}
+                          disabled={processingId === r.id}
+                          className="bg-red-50 text-red-600 py-3 rounded-xl text-[10px] font-black border border-red-100 flex items-center justify-center space-x-1 disabled:opacity-50"
+                        >
+                          <X size={12} />
+                          <span>Reject + 4h</span>
+                        </button>
+                        <button 
+                          onClick={() => handleRejectSell(r, 5)}
+                          disabled={processingId === r.id}
+                          className="bg-red-50 text-red-600 py-3 rounded-xl text-[10px] font-black border border-red-100 flex items-center justify-center space-x-1 disabled:opacity-50"
+                        >
+                          <X size={12} />
+                          <span>Reject + 5h</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
