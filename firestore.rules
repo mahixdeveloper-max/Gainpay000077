@@ -111,6 +111,7 @@ service cloud.firestore {
              (!('utr' in data) || (data.utr is string && data.utr.size() <= 100)) &&
              (!('screenshot' in data) || (data.screenshot is string && data.screenshot.size() <= 2000000)) &&
              (!('userUpiId' in data) || (data.userUpiId is string && data.userUpiId.size() <= 100)) &&
+             (!('adminUpiId' in data) || (data.adminUpiId is string && data.adminUpiId.size() <= 100)) &&
              (!('optionId' in data) || (data.optionId is string)) &&
              data.createdAt is number;
     }
@@ -122,6 +123,15 @@ service cloud.firestore {
              data.status in ['pending', 'approved', 'rejected'] &&
              data.upiId is string && data.upiId.size() <= 100 &&
              data.createdAt is number;
+    }
+
+    function isValidBuyOption(data) {
+      return hasRequiredFields(['amount', 'status', 'createdAt', 'orderNo']) &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['available', 'pending', 'sold'] &&
+             data.createdAt is number &&
+             data.orderNo is string &&
+             (!('upiId' in data) || (data.upiId is string && data.upiId.size() <= 100));
     }
 
     // ===============================================================
@@ -166,8 +176,9 @@ service cloud.firestore {
     match /buyOptions/{optionId} {
       allow read: if isAuthenticated();
       allow update: if isAuthenticated() && 
-        (isAdmin() || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'pending' && resource.data.status == 'available'));
-      allow create, delete: if isAdmin();
+        ((isAdmin() && isValidBuyOption(request.resource.data)) || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'pending' && resource.data.status == 'available'));
+      allow create: if isAdmin() && isValidBuyOption(request.resource.data);
+      allow delete: if isAdmin();
     }
   }
 }

@@ -96,6 +96,8 @@ export default function Buy({ profile }: BuyProps) {
         }
       }
 
+      const targetAdminUpiId = buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings.adminUpiId;
+
       await addDoc(collection(db, path), {
         userId: profile.uid,
         amount: selectedAmount,
@@ -103,6 +105,7 @@ export default function Buy({ profile }: BuyProps) {
         utr: utr || "",
         screenshot: finalScreenshot,
         userUpiId: userUpiId,
+        adminUpiId: targetAdminUpiId,
         optionId: selectedOptionId,
         createdAt: Date.now(),
       });
@@ -304,8 +307,13 @@ export default function Buy({ profile }: BuyProps) {
                 <div className="bg-blue-50 p-4 rounded-2xl space-y-2">
                   <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">Pay to Admin UPI</p>
                   <div className="flex items-center justify-center space-x-2">
-                    <p className="text-lg font-black text-blue-600 tracking-tight">{settings.adminUpiId}</p>
-                    <button onClick={() => copyToClipboard(settings.adminUpiId)} className="text-blue-400">
+                    <p className="text-lg font-black text-blue-600 tracking-tight">
+                      {buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings.adminUpiId}
+                    </p>
+                    <button 
+                      onClick={() => copyToClipboard(buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings.adminUpiId)} 
+                      className="text-blue-400"
+                    >
                       <Copy size={14} />
                     </button>
                   </div>

@@ -41,6 +41,7 @@ export interface BuyRequest {
   utr?: string;
   screenshot?: string; // Base64 or URL
   userUpiId?: string;
+  adminUpiId?: string; // The UPI ID the user was asked to pay to
   optionId?: string; // Link to BuyOption
   createdAt: number;
 }
@@ -56,4 +57,5 @@ export interface BuyOption {
   status: "available" | "pending" | "sold";
   createdAt: number;
   orderNo: string;
+  upiId?: string;
 }

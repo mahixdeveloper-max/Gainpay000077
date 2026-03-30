@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [newOrderAmount, setNewOrderAmount] = useState("");
+  const [newOrderUpiId, setNewOrderUpiId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
@@ -266,11 +267,13 @@ export default function AdminDashboard() {
     try {
       await addDoc(collection(db, "buyOptions"), {
         amount: amt,
+        upiId: newOrderUpiId || settings.adminUpiId,
         status: "available",
         createdAt: Date.now(),
         orderNo: Math.floor(Math.random() * 10000000000000000).toString()
       });
       setNewOrderAmount("");
+      setNewOrderUpiId("");
       alert("Order added successfully!");
     } catch (error) {
       console.error("Error adding order:", error);
@@ -383,7 +386,7 @@ export default function AdminDashboard() {
 
               <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-6">
                 <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Add New Order</h3>
-                <form onSubmit={handleAddBuyOption} className="flex gap-4">
+                <form onSubmit={handleAddBuyOption} className="flex flex-col md:flex-row gap-4">
                   <input 
                     type="number"
                     placeholder="Enter Order Amount (₹)"
@@ -392,9 +395,16 @@ export default function AdminDashboard() {
                     className="flex-1 bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     required
                   />
+                  <input 
+                    type="text"
+                    placeholder="Enter Order UPI ID (Optional)"
+                    value={newOrderUpiId}
+                    onChange={(e) => setNewOrderUpiId(e.target.value)}
+                    className="flex-1 bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  />
                   <button 
                     type="submit"
-                    className="bg-blue-600 text-white px-8 rounded-xl text-xs font-black shadow-lg shadow-blue-100 active:scale-95 transition-all flex items-center space-x-2 uppercase tracking-widest"
+                    className="bg-blue-600 text-white px-8 rounded-xl text-xs font-black shadow-lg shadow-blue-100 active:scale-95 transition-all flex items-center justify-center space-x-2 uppercase tracking-widest"
                   >
                     <Plus size={16} />
                     <span>Add Order</span>
@@ -410,6 +420,7 @@ export default function AdminDashboard() {
                       <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order No: {o.orderNo}</p>
                         <p className="text-lg font-black text-gray-900">₹{o.amount}</p>
+                        {o.upiId && <p className="text-[10px] font-bold text-blue-500">{o.upiId}</p>}
                       </div>
                       <button 
                         onClick={() => handleDeleteBuyOption(o.id)}
@@ -524,6 +535,7 @@ export default function AdminDashboard() {
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">User: {users.find(u => u.uid === r.userId)?.phone}</p>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">User UPI: {r.userUpiId || "N/A"}</p>
+                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">To Admin UPI: {r.adminUpiId || "N/A"}</p>
                         {r.utr && <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">UTR: {r.utr}</p>}
                       </div>
                       <span className="text-lg font-black text-blue-600">₹{r.amount}</span>
