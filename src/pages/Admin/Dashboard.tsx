@@ -301,7 +301,7 @@ export default function AdminDashboard() {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200 p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Gainpay Admin</h1>
+        <h1 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Gainpay Dashboard</h1>
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
           <div className="relative w-full sm:w-64">
             <input 
@@ -488,7 +488,7 @@ export default function AdminDashboard() {
               <form onSubmit={handleUpdateSettings} className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Admin UPI ID</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">UPI ID</label>
                     <input 
                       type="text"
                       value={settings.adminUpiId}
@@ -535,7 +535,7 @@ export default function AdminDashboard() {
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">User: {users.find(u => u.uid === r.userId)?.phone}</p>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">User UPI: {r.userUpiId || "N/A"}</p>
-                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">To Admin UPI: {r.adminUpiId || "N/A"}</p>
+                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">To this UPI: {r.adminUpiId || "N/A"}</p>
                         {r.utr && <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">UTR: {r.utr}</p>}
                       </div>
                       <span className="text-lg font-black text-blue-600">₹{r.amount}</span>

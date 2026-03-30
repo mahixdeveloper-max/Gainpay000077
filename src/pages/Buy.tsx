@@ -292,7 +292,7 @@ export default function Buy({ profile }: BuyProps) {
                 </div>
                 <div className="text-center">
                   <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Request Submitted</h3>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Admin will verify your payment soon.</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Your payment will be verified soon.</p>
                 </div>
               </div>
             ) : (
@@ -305,7 +305,7 @@ export default function Buy({ profile }: BuyProps) {
                 </div>
 
                 <div className="bg-blue-50 p-4 rounded-2xl space-y-2">
-                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">Pay to Admin UPI</p>
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">Pay to this UPI</p>
                   <div className="flex items-center justify-center space-x-2">
                     <p className="text-lg font-black text-blue-600 tracking-tight">
                       {buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings.adminUpiId}

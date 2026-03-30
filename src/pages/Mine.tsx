@@ -95,7 +95,7 @@ export default function Mine({ profile }: MineProps) {
                 <ShieldCheck size={24} />
               </div>
               <div>
-                <p className="text-sm font-black text-white uppercase tracking-tight">Admin Dashboard</p>
+                <p className="text-sm font-black text-white uppercase tracking-tight">Dashboard</p>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Management Portal</p>
               </div>
             </div>

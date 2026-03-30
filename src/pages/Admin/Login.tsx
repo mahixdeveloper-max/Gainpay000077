@@ -42,7 +42,7 @@ export default function AdminLogin() {
             <ShieldCheck size={40} />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Admin Portal</h1>
+            <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Portal</h1>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Gainpay Management System</p>
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function AdminLogin() {
               </div>
               <input
                 type="tel"
-                placeholder="Admin Phone Number"
+                placeholder="Phone Number"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-black text-gray-800 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all outline-none"
@@ -69,7 +69,7 @@ export default function AdminLogin() {
               </div>
               <input
                 type="password"
-                placeholder="Admin Password"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-black text-gray-800 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all outline-none"

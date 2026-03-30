@@ -189,7 +189,7 @@ export default function UPI({ profile }: UPIProps) {
                 <CheckCircle2 size={48} className="text-green-600" />
                 <div className="text-center">
                   <p className="text-sm font-black text-gray-900 uppercase tracking-tight">Sell Request Submitted</p>
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Admin will process your payment soon.</p>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Your payment will be processed soon.</p>
                 </div>
               </div>
             ) : (
