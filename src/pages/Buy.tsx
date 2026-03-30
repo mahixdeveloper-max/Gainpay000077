@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { UserProfile, AppSettings } from "../types";
+import { UserProfile, AppSettings, BuyOption } from "../types";
 import { QRCodeSVG } from "qrcode.react";
 import { Copy, Download, Search, ChevronUp, ChevronDown, Globe, X, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
-import { collection, addDoc, doc, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, doc, onSnapshot, updateDoc } from "firebase/firestore";
 
 interface BuyProps {
   profile: UserProfile | null;
@@ -21,14 +21,22 @@ export default function Buy({ profile }: BuyProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ adminUpiId: "6491643491@upi" });
+  const [buyOptions, setBuyOptions] = useState<BuyOption[]>([]);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "config", "settings"), (snap) => {
+    const unsubSettings = onSnapshot(doc(db, "config", "settings"), (snap) => {
       if (snap.exists()) {
         setSettings(snap.data() as AppSettings);
       }
     });
-    return () => unsub();
+    const unsubOptions = onSnapshot(collection(db, "buyOptions"), (snap) => {
+      setBuyOptions(snap.docs.map(d => ({ ...d.data(), id: d.id } as BuyOption)));
+    });
+    return () => {
+      unsubSettings();
+      unsubOptions();
+    };
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,8 +55,9 @@ export default function Buy({ profile }: BuyProps) {
     alert("Copied to clipboard!");
   };
 
-  const handleBuyClick = (amt: number) => {
+  const handleBuyClick = (amt: number, optionId: string) => {
     setSelectedAmount(amt);
+    setSelectedOptionId(optionId);
     setShowConfirmModal(true);
   };
 
@@ -94,8 +103,15 @@ export default function Buy({ profile }: BuyProps) {
         utr: utr || "",
         screenshot: finalScreenshot,
         userUpiId: userUpiId,
+        optionId: selectedOptionId,
         createdAt: Date.now(),
       });
+
+      // Update option status to pending so it disappears from the list
+      if (selectedOptionId) {
+        await updateDoc(doc(db, "buyOptions", selectedOptionId), { status: "pending" });
+      }
+
       setSuccess(true);
       setTimeout(() => {
         setShowConfirmModal(false);
@@ -154,10 +170,10 @@ export default function Buy({ profile }: BuyProps) {
             </div>
 
             <div className="space-y-4">
-              {[300, 500, 1000, 2000, 5000].map((amt) => (
-                <div key={amt} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+              {buyOptions.filter(o => o.status === "available").sort((a, b) => a.amount - b.amount).map((option) => (
+                <div key={option.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
                   <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    <span>No:{Math.floor(Math.random() * 10000000000000000)}</span>
+                    <span>No:{option.orderNo}</span>
                     <span>Reward 4.5%</span>
                   </div>
                   
@@ -165,21 +181,21 @@ export default function Buy({ profile }: BuyProps) {
                     <div className="flex items-center space-x-2">
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-red-600 uppercase">Price</p>
-                        <p className="text-lg font-black text-red-600 tracking-tighter">₹ {amt}</p>
+                        <p className="text-lg font-black text-red-600 tracking-tighter">₹ {option.amount}</p>
                       </div>
                       <span className="text-gray-300 font-bold">+</span>
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-gray-500 uppercase">Reward</p>
-                        <p className="text-lg font-black text-gray-800 tracking-tighter">{(amt * 0.045).toFixed(1)}</p>
+                        <p className="text-lg font-black text-gray-800 tracking-tighter">{(option.amount * 0.045).toFixed(1)}</p>
                       </div>
                       <span className="text-gray-300 font-bold">=</span>
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-blue-600 uppercase">Itoken</p>
-                        <p className="text-lg font-black text-blue-600 tracking-tighter">{(amt * 1.045).toFixed(2)}</p>
+                        <p className="text-lg font-black text-blue-600 tracking-tighter">{(option.amount * 1.045).toFixed(2)}</p>
                       </div>
                     </div>
                     <button 
-                      onClick={() => handleBuyClick(amt)}
+                      onClick={() => handleBuyClick(option.amount, option.id)}
                       className="bg-blue-600 text-white px-6 py-2 rounded-lg text-xs font-black shadow-lg shadow-blue-100 active:scale-95 transition-all"
                     >
                       Buy
@@ -187,6 +203,11 @@ export default function Buy({ profile }: BuyProps) {
                   </div>
                 </div>
               ))}
+              {buyOptions.filter(o => o.status === "available").length === 0 && (
+                <div className="py-20 text-center">
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No orders available at the moment.</p>
+                </div>
+              )}
             </div>
           </div>
         ) : (

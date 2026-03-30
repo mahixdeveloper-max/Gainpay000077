@@ -3,8 +3,8 @@ import { auth, db, handleFirestoreError, OperationType } from "../../lib/firebas
 import { collection, query, getDocs, updateDoc, doc, onSnapshot, addDoc, increment, where, setDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { UserProfile, Transaction, BuyRequest, SellRequest } from "../../types";
-import { Users, CreditCard, ShoppingCart, History, Check, X, Ban, Unlock, TrendingUp, LogOut, Settings, Save } from "lucide-react";
+import { UserProfile, Transaction, BuyRequest, SellRequest, BuyOption } from "../../types";
+import { Users, CreditCard, ShoppingCart, History, Check, X, Ban, Unlock, TrendingUp, LogOut, Settings, Save, Plus, Trash2, Package } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AppSettings } from "../../types";
 
@@ -13,10 +13,13 @@ export default function AdminDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [buyRequests, setBuyRequests] = useState<BuyRequest[]>([]);
   const [sellRequests, setSellRequests] = useState<SellRequest[]>([]);
+  const [buyOptions, setBuyOptions] = useState<BuyOption[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ adminUpiId: "6491643491@upi" });
-  const [activeTab, setActiveTab] = useState<"users" | "buys" | "sells" | "txs" | "settings">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "buys" | "sells" | "txs" | "settings" | "orders">("users");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [newOrderAmount, setNewOrderAmount] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -52,6 +55,11 @@ export default function AdminDashboard() {
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, "config/settings");
     });
+    const unsubBuyOptions = onSnapshot(collection(db, "buyOptions"), (snap) => {
+      setBuyOptions(snap.docs.map(d => ({ ...d.data(), id: d.id } as BuyOption)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "buyOptions");
+    });
 
     return () => {
       unsubUsers();
@@ -59,6 +67,7 @@ export default function AdminDashboard() {
       unsubBuys();
       unsubSells();
       unsubSettings();
+      unsubBuyOptions();
     };
   }, []);
 
@@ -101,6 +110,11 @@ export default function AdminDashboard() {
       
       // 2. Update request status
       await updateDoc(doc(db, "buyRequests", request.id), { status: "approved" });
+      
+      // 2.1 Update buy option status if exists
+      if (request.optionId) {
+        await updateDoc(doc(db, "buyOptions", request.optionId), { status: "sold" });
+      }
       
       // 3. Add transaction record for the user
       await addDoc(collection(db, "transactions"), {
@@ -212,10 +226,16 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRejectBuy = async (id: string) => {
-    setProcessingId(id);
+  const handleRejectBuy = async (request: BuyRequest) => {
+    setProcessingId(request.id);
     try {
-      await updateDoc(doc(db, "buyRequests", id), { status: "rejected" });
+      await updateDoc(doc(db, "buyRequests", request.id), { status: "rejected" });
+      
+      // Revert buy option status if exists
+      if (request.optionId) {
+        await updateDoc(doc(db, "buyOptions", request.optionId), { status: "available" });
+      }
+      
       alert("Buy request rejected.");
     } catch (error) {
       console.error("Error rejecting buy request:", error);
@@ -238,7 +258,37 @@ export default function AdminDashboard() {
     }
   };
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const handleAddBuyOption = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(newOrderAmount);
+    if (isNaN(amt) || amt <= 0) return;
+
+    try {
+      await addDoc(collection(db, "buyOptions"), {
+        amount: amt,
+        status: "available",
+        createdAt: Date.now(),
+        orderNo: Math.floor(Math.random() * 10000000000000000).toString()
+      });
+      setNewOrderAmount("");
+      alert("Order added successfully!");
+    } catch (error) {
+      console.error("Error adding order:", error);
+      alert("Failed to add order.");
+    }
+  };
+
+  const handleDeleteBuyOption = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this order?")) return;
+    try {
+      // For simplicity, we'll just mark it as sold or similar, but let's just delete it if available
+      // Actually, deleting is fine for available ones
+      await updateDoc(doc(db, "buyOptions", id), { status: "sold" }); // Or deleteDoc
+      alert("Order removed.");
+    } catch (error) {
+      console.error("Error deleting order:", error);
+    }
+  };
 
   const filteredUsers = users.filter(u => 
     u.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -308,6 +358,13 @@ export default function AdminDashboard() {
             <span>History</span>
           </button>
           <button 
+            onClick={() => setActiveTab("orders")}
+            className={cn("flex items-center space-x-3 p-3 rounded-xl text-sm font-black transition-all whitespace-nowrap md:w-full", activeTab === "orders" ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-gray-500 hover:bg-gray-50")}
+          >
+            <Package size={18} />
+            <span>Orders</span>
+          </button>
+          <button 
             onClick={() => setActiveTab("settings")}
             className={cn("flex items-center space-x-3 p-3 rounded-xl text-sm font-black transition-all whitespace-nowrap md:w-full", activeTab === "settings" ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-gray-500 hover:bg-gray-50")}
           >
@@ -318,6 +375,60 @@ export default function AdminDashboard() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          {activeTab === "orders" && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Buy Orders Management</h2>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Add New Order</h3>
+                <form onSubmit={handleAddBuyOption} className="flex gap-4">
+                  <input 
+                    type="number"
+                    placeholder="Enter Order Amount (₹)"
+                    value={newOrderAmount}
+                    onChange={(e) => setNewOrderAmount(e.target.value)}
+                    className="flex-1 bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    required
+                  />
+                  <button 
+                    type="submit"
+                    className="bg-blue-600 text-white px-8 rounded-xl text-xs font-black shadow-lg shadow-blue-100 active:scale-95 transition-all flex items-center space-x-2 uppercase tracking-widest"
+                  >
+                    <Plus size={16} />
+                    <span>Add Order</span>
+                  </button>
+                </form>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Available Orders</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {buyOptions.filter(o => o.status === "available").map(o => (
+                    <div key={o.id} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center">
+                      <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order No: {o.orderNo}</p>
+                        <p className="text-lg font-black text-gray-900">₹{o.amount}</p>
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteBuyOption(o.id)}
+                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))}
+                  {buyOptions.filter(o => o.status === "available").length === 0 && (
+                    <div className="col-span-full py-10 text-center bg-white rounded-2xl border border-dashed border-gray-200">
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No available orders. Add some above.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === "users" && (
             <div className="space-y-6">
               <h2 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tighter">User Management</h2>
@@ -442,7 +553,7 @@ export default function AdminDashboard() {
                         <span>{processingId === r.id ? "..." : "Approve"}</span>
                       </button>
                       <button 
-                        onClick={() => handleRejectBuy(r.id)}
+                        onClick={() => handleRejectBuy(r)}
                         disabled={processingId === r.id}
                         className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl text-xs font-black border border-red-100 flex items-center justify-center space-x-2 disabled:opacity-50"
                       >

@@ -160,5 +160,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
+
+    // Buy Options
+    match /buyOptions/{optionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
   }
 }

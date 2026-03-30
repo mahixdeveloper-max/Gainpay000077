@@ -41,10 +41,19 @@ export interface BuyRequest {
   utr?: string;
   screenshot?: string; // Base64 or URL
   userUpiId?: string;
+  optionId?: string; // Link to BuyOption
   createdAt: number;
 }
 
 export interface AppSettings {
   adminUpiId: string;
   imgbbApiKey?: string;
+}
+
+export interface BuyOption {
+  id: string;
+  amount: number;
+  status: "available" | "pending" | "sold";
+  createdAt: number;
+  orderNo: string;
 }
