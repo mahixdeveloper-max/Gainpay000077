@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   const [newOrderUpiId, setNewOrderUpiId] = useState("");
   const [newOrderRewardPercent, setNewOrderRewardPercent] = useState("4.5");
   const [searchTerm, setSearchTerm] = useState("");
+  const [customMinutes, setCustomMinutes] = useState("60");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const navigate = useNavigate();
 
@@ -262,18 +263,19 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRejectSell = async (request: SellRequest, hours?: number) => {
+  const handleRejectSell = async (request: SellRequest, minutes?: number) => {
     setProcessingId(request.id);
     try {
       await updateDoc(doc(db, "sellRequests", request.id), { status: "rejected" });
       
-      if (hours) {
+      if (minutes) {
         await updateDoc(doc(db, "users", request.userId), {
-          sellRestrictedUntil: Date.now() + hours * 60 * 60 * 1000
+          sellRestrictedUntil: Date.now() + minutes * 60 * 1000
         });
       }
       
-      alert(`Sell request rejected${hours ? ` and user restricted for ${hours}h` : ""}.`);
+      const timeStr = minutes ? (minutes >= 60 ? `${(minutes/60).toFixed(1)}h` : `${minutes}m`) : "";
+      alert(`Sell request rejected${timeStr ? ` and user restricted for ${timeStr}` : ""}.`);
     } catch (error) {
       console.error("Error rejecting sell request:", error);
       alert("Failed to reject sell request: " + (error instanceof Error ? error.message : "Unknown error"));
@@ -644,38 +646,31 @@ export default function AdminDashboard() {
                         <span>{processingId === r.id ? "..." : "Approve"}</span>
                       </button>
                       
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="number"
+                            placeholder="Mins"
+                            value={customMinutes}
+                            onChange={(e) => setCustomMinutes(e.target.value)}
+                            className="w-20 bg-gray-50 border border-gray-100 rounded-lg py-2 px-2 text-[10px] font-black focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          <button 
+                            onClick={() => handleRejectSell(r, Number(customMinutes))}
+                            disabled={processingId === r.id}
+                            className="flex-1 bg-red-600 text-white py-2 rounded-lg text-[10px] font-black shadow-sm flex items-center justify-center space-x-1 disabled:opacity-50"
+                          >
+                            <X size={12} />
+                            <span>Reject + {customMinutes}m</span>
+                          </button>
+                        </div>
                         <button 
                           onClick={() => handleRejectSell(r)}
                           disabled={processingId === r.id}
-                          className="bg-red-50 text-red-600 py-3 rounded-xl text-[10px] font-black border border-red-100 flex items-center justify-center space-x-1 disabled:opacity-50"
+                          className="w-full bg-gray-100 text-gray-600 py-2 rounded-lg text-[10px] font-black border border-gray-200 flex items-center justify-center space-x-1 disabled:opacity-50"
                         >
                           <X size={12} />
                           <span>Reject Only</span>
-                        </button>
-                        <button 
-                          onClick={() => handleRejectSell(r, 1)}
-                          disabled={processingId === r.id}
-                          className="bg-red-50 text-red-600 py-3 rounded-xl text-[10px] font-black border border-red-100 flex items-center justify-center space-x-1 disabled:opacity-50"
-                        >
-                          <X size={12} />
-                          <span>Reject + 1h</span>
-                        </button>
-                        <button 
-                          onClick={() => handleRejectSell(r, 4)}
-                          disabled={processingId === r.id}
-                          className="bg-red-50 text-red-600 py-3 rounded-xl text-[10px] font-black border border-red-100 flex items-center justify-center space-x-1 disabled:opacity-50"
-                        >
-                          <X size={12} />
-                          <span>Reject + 4h</span>
-                        </button>
-                        <button 
-                          onClick={() => handleRejectSell(r, 5)}
-                          disabled={processingId === r.id}
-                          className="bg-red-50 text-red-600 py-3 rounded-xl text-[10px] font-black border border-red-100 flex items-center justify-center space-x-1 disabled:opacity-50"
-                        >
-                          <X size={12} />
-                          <span>Reject + 5h</span>
                         </button>
                       </div>
                     </div>
@@ -769,22 +764,28 @@ export default function AdminDashboard() {
 
                 {/* Cooldown */}
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Sell Cooldown (Hours)</label>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Sell Cooldown (Minutes)</label>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="number"
+                      placeholder="Enter minutes"
+                      value={customMinutes}
+                      onChange={(e) => setCustomMinutes(e.target.value)}
+                      className="flex-1 bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                    <button
+                      onClick={() => handleUpdateUserRestriction(selectedUser.uid, { 
+                        sellRestrictedUntil: Date.now() + Number(customMinutes) * 60 * 1000 
+                      })}
+                      className="bg-blue-600 text-white px-6 py-4 rounded-xl text-xs font-black shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest"
+                    >
+                      Apply
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {[1, 4, 5].map((hours) => (
-                      <button
-                        key={hours}
-                        onClick={() => handleUpdateUserRestriction(selectedUser.uid, { 
-                          sellRestrictedUntil: Date.now() + hours * 60 * 60 * 1000 
-                        })}
-                        className="py-3 bg-white text-gray-800 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
-                      >
-                        Stop for {hours}h
-                      </button>
-                    ))}
                     <button
                       onClick={() => handleUpdateUserRestriction(selectedUser.uid, { sellRestrictedUntil: 0 })}
-                      className="py-3 bg-green-50 text-green-600 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all"
+                      className="col-span-2 py-3 bg-green-50 text-green-600 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all"
                     >
                       Clear Cooldown
                     </button>
