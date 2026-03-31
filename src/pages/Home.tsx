@@ -1,35 +1,64 @@
-import { UserProfile } from "../types";
+import { UserProfile, AppSettings, Transaction } from "../types";
 import { Bell, ChevronRight, Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { db } from "../lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 interface HomeProps {
   profile: UserProfile | null;
+  settings: AppSettings | null;
 }
 
-export default function Home({ profile }: HomeProps) {
+export default function Home({ profile, settings }: HomeProps) {
+  const [todayProfit, setTodayProfit] = useState(0);
+
+  useEffect(() => {
+    if (!profile) return;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const q = query(
+      collection(db, "transactions"),
+      where("userId", "==", profile.uid),
+      where("type", "==", "reward"),
+      where("createdAt", ">=", startOfDay.getTime())
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const total = snap.docs.reduce((acc, doc) => acc + (doc.data() as Transaction).amount, 0);
+      setTodayProfit(total);
+    });
+
+    return () => unsubscribe();
+  }, [profile]);
+
   return (
     <div className="flex flex-col space-y-4 p-4">
       {/* Banner */}
       <div className="relative rounded-xl overflow-hidden shadow-lg h-48 bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900">
         <img 
-          src="https://picsum.photos/seed/crypto-banner/800/400" 
+          src={settings?.bannerUrl || "https://picsum.photos/seed/gainpay-banner/800/400"} 
           alt="Banner" 
           className="w-full h-full object-cover opacity-60"
           referrerPolicy="no-referrer"
         />
-        <div className="absolute inset-0 flex flex-col justify-center p-6 text-white">
-          <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">
-            Lucky Draw for Active Users
-          </h2>
-          <p className="text-[10px] mt-2 font-bold opacity-80 uppercase tracking-widest">
-            Participate & Win Big! Enter the Voice & Video Prize Draw.
-          </p>
-          <div className="mt-4 flex space-x-2">
-            <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-[10px] font-black uppercase">
-              1st Place 1,000 Tokens
+        {!settings?.bannerUrl && (
+          <div className="absolute inset-0 flex flex-col justify-center p-6 text-white">
+            <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">
+              Lucky Draw for Active Users
+            </h2>
+            <p className="text-[10px] mt-2 font-bold opacity-80 uppercase tracking-widest">
+              Participate & Win Big! Enter the Voice & Video Prize Draw.
+            </p>
+            <div className="mt-4 flex space-x-2">
+              <div className="bg-yellow-400 text-black px-3 py-1 rounded-full text-[10px] font-black uppercase">
+                1st Place 1,000 Tokens
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Wallet Info */}
@@ -37,7 +66,7 @@ export default function Home({ profile }: HomeProps) {
         <div className="flex justify-between items-center">
           <div className="space-y-1">
             <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider">My IToken</h3>
-            <p className="text-[10px] text-gray-900 font-black uppercase tracking-tight">{profile?.phone || "6491643491"}</p>
+            <p className="text-[10px] text-gray-900 font-black uppercase tracking-tight">{profile?.phone || "N/A"}</p>
             <p className="text-[10px] text-gray-400">1 Rs = 1 IToken, 1 USDT ≈ 107 IToken</p>
           </div>
         </div>
@@ -63,11 +92,11 @@ export default function Home({ profile }: HomeProps) {
         <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50">
           <div className="space-y-1">
             <p className="text-gray-400 text-[10px] font-bold uppercase">Today Profit</p>
-            <p className="text-lg font-black text-gray-900">0</p>
+            <p className="text-lg font-black text-gray-900">₹{todayProfit.toFixed(2)}</p>
           </div>
           <div className="space-y-1">
             <p className="text-gray-400 text-[10px] font-bold uppercase">Reward</p>
-            <p className="text-lg font-black text-blue-600 italic">4.5%</p>
+            <p className="text-lg font-black text-blue-600 italic">{settings?.globalRewardPercent || 4.5}%</p>
           </div>
         </div>
 
@@ -93,13 +122,18 @@ export default function Home({ profile }: HomeProps) {
       </div>
 
       {/* Official Group */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+      <a 
+        href={settings?.telegramGroupUrl || "https://t.me/gainpayy"} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors"
+      >
         <div className="flex items-center space-x-3">
           <Bell size={16} className="text-gray-400" />
           <span className="text-xs font-bold text-gray-600">Official Group</span>
         </div>
         <ChevronRight size={16} className="text-gray-300" />
-      </div>
+      </a>
 
       {/* News */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6">

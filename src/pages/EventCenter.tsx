@@ -2,16 +2,21 @@ import React from "react";
 import { ChevronLeft, Send, Users, Play, Link as LinkIcon, ShoppingCart, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
+import { UserProfile } from "../types";
 
-export default function EventCenter() {
+interface EventCenterProps {
+  profile: UserProfile | null;
+}
+
+export default function EventCenter({ profile }: EventCenterProps) {
   const navigate = useNavigate();
 
   const rewards = [
-    { name: "Subscribe to Official Channel", icon: Send, color: "text-blue-500", bg: "bg-blue-50", status: "Done" },
-    { name: "Join VIP Group", icon: Send, color: "text-blue-400", bg: "bg-blue-50", status: "Done" },
-    { name: "Watch Beginner Tutorial", icon: Play, color: "text-blue-600", bg: "bg-blue-50", status: "Done" },
-    { name: "Link Mobikwik", icon: LinkIcon, color: "text-orange-500", bg: "bg-orange-50", status: "Done" },
-    { name: "Purchase 5000 IToken", icon: ShoppingCart, color: "text-yellow-500", bg: "bg-yellow-50", status: "Done" },
+    { name: "Subscribe to Official Channel", icon: Send, color: "text-blue-500", bg: "bg-blue-50", status: profile?.completedTasks?.includes("subscribe") ? "Done" : "Pending" },
+    { name: "Join VIP Group", icon: Send, color: "text-blue-400", bg: "bg-blue-50", status: profile?.completedTasks?.includes("join_vip") ? "Done" : "Pending" },
+    { name: "Watch Beginner Tutorial", icon: Play, color: "text-blue-600", bg: "bg-blue-50", status: profile?.completedTasks?.includes("tutorial") ? "Done" : "Pending" },
+    { name: "Link Mobikwik", icon: LinkIcon, color: "text-orange-500", bg: "bg-orange-50", status: profile?.completedTasks?.includes("link_mobikwik") ? "Done" : "Pending" },
+    { name: "Purchase 5000 IToken", icon: ShoppingCart, color: "text-yellow-500", bg: "bg-yellow-50", status: profile?.completedTasks?.includes("purchase_5000") ? "Done" : "Pending" },
   ];
 
   return (
@@ -60,8 +65,10 @@ export default function EventCenter() {
                 </span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Done</span>
-                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white shadow-sm">
+                <span className={cn("text-[10px] font-black uppercase tracking-widest", reward.status === "Done" ? "text-green-500" : "text-gray-400")}>
+                  {reward.status}
+                </span>
+                <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white shadow-sm", reward.status === "Done" ? "bg-green-500" : "bg-gray-200")}>
                   <CheckCircle2 size={14} />
                 </div>
               </div>

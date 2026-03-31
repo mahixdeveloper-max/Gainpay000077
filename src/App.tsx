@@ -2,8 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
-import { UserProfile } from "./types";
+import { doc, onSnapshot, collection, query, where, getDocs } from "firebase/firestore";
+import { UserProfile, AppSettings } from "./types";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 // Pages
@@ -23,10 +23,19 @@ import Layout from "./components/Layout";
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | undefined;
+    
+    // Fetch settings
+    const unsubscribeSettings = onSnapshot(doc(db, "config", "settings"), (snap) => {
+      if (snap.exists()) {
+        setSettings(snap.data() as AppSettings);
+      }
+    });
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -50,6 +59,7 @@ export default function App() {
     });
     return () => {
       unsubscribeAuth();
+      unsubscribeSettings();
       if (unsubscribeProfile) unsubscribeProfile();
     };
   }, []);
@@ -70,13 +80,13 @@ export default function App() {
           <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
           
           <Route element={user ? <Layout profile={profile} /> : <Navigate to="/login" />}>
-            <Route path="/" element={<Home profile={profile} />} />
-            <Route path="/buy" element={<Buy profile={profile} />} />
-            <Route path="/upi" element={<UPI profile={profile} />} />
+            <Route path="/" element={<Home profile={profile} settings={settings} />} />
+            <Route path="/buy" element={<Buy profile={profile} settings={settings} />} />
+            <Route path="/upi" element={<UPI profile={profile} settings={settings} />} />
             <Route path="/team" element={<Team profile={profile} />} />
-            <Route path="/mine" element={<Mine profile={profile} />} />
+            <Route path="/mine" element={<Mine profile={profile} settings={settings} />} />
             <Route path="/history" element={<History profile={profile} />} />
-            <Route path="/event-center" element={<EventCenter />} />
+            <Route path="/event-center" element={<EventCenter profile={profile} />} />
           </Route>
 
           <Route path="/admin" element={<AdminLogin />} />

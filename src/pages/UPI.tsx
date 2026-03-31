@@ -1,22 +1,24 @@
 import React, { useState } from "react";
-import { UserProfile } from "../types";
-import { Play, Link as LinkIcon, Inbox, CheckCircle2, X, CreditCard, AlertCircle } from "lucide-react";
+import { UserProfile, AppSettings } from "../types";
+import { Play, Link as LinkIcon, Inbox, CheckCircle2, X, CreditCard, AlertCircle, Trash2 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { doc, updateDoc, collection, addDoc } from "firebase/firestore";
 
 interface UPIProps {
   profile: UserProfile | null;
+  settings: AppSettings | null;
 }
 
-export default function UPI({ profile }: UPIProps) {
+export default function UPI({ profile, settings }: UPIProps) {
   const [activeTab, setActiveTab] = useState<"Buy" | "Sell">("Buy");
   const [isLinking, setIsLinking] = useState(false);
-  const [upiId, setUpiId] = useState(profile?.upiId || "");
+  const [upiId, setUpiId] = useState("");
   const [loading, setLoading] = useState(false);
   
   // Sell states
   const [sellAmount, setSellAmount] = useState("");
+  const [selectedUpiId, setSelectedUpiId] = useState(profile?.upiIds?.[0] || profile?.upiId || "");
   const [sellLoading, setSellLoading] = useState(false);
   const [sellSuccess, setSellSuccess] = useState(false);
 
@@ -25,13 +27,25 @@ export default function UPI({ profile }: UPIProps) {
     if (!profile) return;
     if (!upiId.includes("@")) return alert("Please enter a valid UPI ID");
 
+    const currentUpiIds = profile.upiIds || (profile.upiId ? [profile.upiId] : []);
+    if (currentUpiIds.length >= 3) {
+      return alert("You can only add up to 3 UPI IDs.");
+    }
+
+    if (currentUpiIds.includes(upiId)) {
+      return alert("This UPI ID is already linked.");
+    }
+
     setLoading(true);
     const path = `users/${profile.uid}`;
     try {
+      const newUpiIds = [...currentUpiIds, upiId];
       await updateDoc(doc(db, "users", profile.uid), {
-        upiId: upiId,
+        upiIds: newUpiIds,
+        upiId: newUpiIds[0] // Set as primary if it's the first one
       });
       setIsLinking(false);
+      setUpiId("");
       alert("UPI ID linked successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
@@ -40,10 +54,31 @@ export default function UPI({ profile }: UPIProps) {
     }
   };
 
+  const handleDeleteUPI = async (idToDelete: string) => {
+    if (!profile) return;
+    if (!confirm("Are you sure you want to delete this UPI ID?")) return;
+
+    const currentUpiIds = profile.upiIds || (profile.upiId ? [profile.upiId] : []);
+    const newUpiIds = currentUpiIds.filter(id => id !== idToDelete);
+
+    const path = `users/${profile.uid}`;
+    try {
+      await updateDoc(doc(db, "users", profile.uid), {
+        upiIds: newUpiIds,
+        upiId: newUpiIds[0] || "" // Update primary
+      });
+      if (selectedUpiId === idToDelete) {
+        setSelectedUpiId(newUpiIds[0] || "");
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  };
+
   const handleSellSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
-    if (!profile.upiId) return alert("Please link your UPI ID first!");
+    if (!selectedUpiId) return alert("Please select a UPI ID first!");
 
     // Check for restrictions
     if (profile.sellStatus === "stopped") {
@@ -54,8 +89,18 @@ export default function UPI({ profile }: UPIProps) {
     }
     if (profile.sellRestrictedUntil && profile.sellRestrictedUntil > Date.now()) {
       const remainingMs = profile.sellRestrictedUntil - Date.now();
-      const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
-      return alert(`Selling is restricted for you. Please try again after ${remainingHours} hour(s).`);
+      const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+      
+      let timeText = "";
+      if (remainingMinutes >= 60) {
+        const hours = Math.floor(remainingMinutes / 60);
+        const mins = remainingMinutes % 60;
+        timeText = `${hours} hour(s) and ${mins} minute(s)`;
+      } else {
+        timeText = `${remainingMinutes} minute(s)`;
+      }
+      
+      return alert(`Selling is restricted for you. Please try again after ${timeText}.`);
     }
     
     const amount = Number(sellAmount);
@@ -69,7 +114,7 @@ export default function UPI({ profile }: UPIProps) {
         userId: profile.uid,
         amount: amount,
         status: "pending",
-        upiId: profile.upiId,
+        upiId: selectedUpiId,
         createdAt: Date.now(),
       });
       setSellSuccess(true);
@@ -81,6 +126,8 @@ export default function UPI({ profile }: UPIProps) {
       setSellLoading(false);
     }
   };
+
+  const allUpiIds = profile?.upiIds || (profile?.upiId ? [profile.upiId] : []);
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -103,7 +150,8 @@ export default function UPI({ profile }: UPIProps) {
           </button>
           <button 
             onClick={() => setIsLinking(true)}
-            className="bg-blue-600 text-white py-4 rounded-xl text-xs font-black shadow-lg shadow-blue-200 flex items-center justify-center space-x-2 active:scale-95 transition-all"
+            disabled={allUpiIds.length >= 3}
+            className="bg-blue-600 text-white py-4 rounded-xl text-xs font-black shadow-lg shadow-blue-200 flex items-center justify-center space-x-2 active:scale-95 transition-all disabled:opacity-50"
           >
             <LinkIcon size={14} />
             <span>Link New UPI</span>
@@ -164,25 +212,37 @@ export default function UPI({ profile }: UPIProps) {
         </div>
 
         {activeTab === "Buy" ? (
-          profile?.upiId ? (
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
-                    <CheckCircle2 size={24} />
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Linked UPI ID</p>
-                    <p className="text-sm font-black text-gray-800">{profile.upiId}</p>
+          allUpiIds.length > 0 ? (
+            <div className="space-y-4">
+              {allUpiIds.map((id, index) => (
+                <div key={index} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
+                        <CheckCircle2 size={24} />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Linked UPI ID {index + 1}</p>
+                        <p className="text-sm font-black text-gray-800">{id}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleDeleteUPI(id)}
+                      className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 </div>
+              ))}
+              {allUpiIds.length < 3 && (
                 <button 
                   onClick={() => setIsLinking(true)}
-                  className="text-[10px] font-black text-blue-600 uppercase tracking-widest underline"
+                  className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-xs font-black text-gray-400 uppercase tracking-widest hover:border-blue-200 hover:text-blue-400 transition-all"
                 >
-                  Change
+                  + Add Another UPI ID
                 </button>
-              </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 space-y-6 opacity-60">
@@ -228,10 +288,27 @@ export default function UPI({ profile }: UPIProps) {
                     </div>
                   </div>
 
-                  {profile?.upiId && (
-                    <div className="bg-blue-50 p-4 rounded-xl space-y-1">
-                      <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Receiving UPI ID</p>
-                      <p className="text-xs font-black text-blue-600">{profile.upiId}</p>
+                  {allUpiIds.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Select Receiving UPI ID</label>
+                      <div className="space-y-2">
+                        {allUpiIds.map((id) => (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => setSelectedUpiId(id)}
+                            className={cn(
+                              "w-full p-4 rounded-xl border text-left transition-all",
+                              selectedUpiId === id 
+                                ? "bg-blue-50 border-blue-200 text-blue-600" 
+                                : "bg-gray-50 border-gray-100 text-gray-600"
+                            )}
+                          >
+                            <p className="text-[9px] font-black uppercase tracking-widest opacity-60">UPI ID</p>
+                            <p className="text-xs font-black">{id}</p>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -244,14 +321,14 @@ export default function UPI({ profile }: UPIProps) {
 
                   <button
                     type="submit"
-                    disabled={sellLoading || !sellAmount || !profile?.upiId}
+                    disabled={sellLoading || !sellAmount || !selectedUpiId}
                     className="w-full bg-blue-600 text-white py-4 rounded-xl text-xs font-black shadow-lg shadow-blue-100 active:scale-95 transition-all disabled:opacity-50 uppercase tracking-widest flex items-center justify-center space-x-2"
                   >
                     <CreditCard size={16} />
                     <span>{sellLoading ? "Processing..." : "Sell Now"}</span>
                   </button>
                   
-                  {!profile?.upiId && (
+                  {allUpiIds.length === 0 && (
                     <p className="text-[10px] font-black text-red-600 text-center uppercase tracking-tight">
                       Please link UPI ID to enable selling.
                     </p>

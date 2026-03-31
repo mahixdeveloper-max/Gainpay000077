@@ -14,7 +14,13 @@ export default function AdminDashboard() {
   const [buyRequests, setBuyRequests] = useState<BuyRequest[]>([]);
   const [sellRequests, setSellRequests] = useState<SellRequest[]>([]);
   const [buyOptions, setBuyOptions] = useState<BuyOption[]>([]);
-  const [settings, setSettings] = useState<AppSettings>({ adminUpiId: "6491643491@upi" });
+  const [settings, setSettings] = useState<AppSettings>({ 
+    adminUpiId: "6491643491@upi",
+    globalRewardPercent: 4.5,
+    telegramChannelUrl: "https://t.me/gainpayofficialchanel",
+    telegramGroupUrl: "https://t.me/gainpayy",
+    telegramSupportId: "@gainpay1"
+  });
   const [activeTab, setActiveTab] = useState<"users" | "buys" | "sells" | "txs" | "settings" | "orders">("users");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -118,8 +124,9 @@ export default function AdminDashboard() {
 
     setProcessingId(request.id);
     try {
-      const rewardPercent = request.rewardPercent || 4.5;
-      const totalAmount = request.amount * (1 + rewardPercent / 100);
+      const rewardPercent = request.rewardPercent || settings.globalRewardPercent || 4.5;
+      const rewardAmount = request.amount * (rewardPercent / 100);
+      const totalAmount = request.amount + rewardAmount;
 
       // 1. Update user balance
       await updateDoc(doc(db, "users", request.userId), { 
@@ -134,14 +141,25 @@ export default function AdminDashboard() {
         await updateDoc(doc(db, "buyOptions", request.optionId), { status: "sold" });
       }
       
-      // 3. Add transaction record for the user
+      // 3. Add transaction records
       await addDoc(collection(db, "transactions"), {
         userId: request.userId,
         type: "buy",
-        amount: totalAmount,
+        amount: request.amount,
         status: "completed",
         createdAt: Date.now(),
-        method: "UPI"
+        method: "UPI",
+        description: "Buy principal"
+      });
+
+      await addDoc(collection(db, "transactions"), {
+        userId: request.userId,
+        type: "reward",
+        amount: rewardAmount,
+        status: "completed",
+        createdAt: Date.now(),
+        method: "UPI",
+        description: `Buy reward (${rewardPercent}%)`
       });
 
       // 4. Referral Commission Logic (Level 1)
@@ -531,17 +549,75 @@ export default function AdminDashboard() {
               
               <form onSubmit={handleUpdateSettings} className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
                 <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Admin UPI ID</label>
+                      <input 
+                        type="text"
+                        value={settings.adminUpiId}
+                        onChange={(e) => setSettings({ ...settings, adminUpiId: e.target.value })}
+                        placeholder="e.g. 1234567890@upi"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Global Reward %</label>
+                      <input 
+                        type="number"
+                        step="0.1"
+                        value={settings.globalRewardPercent}
+                        onChange={(e) => setSettings({ ...settings, globalRewardPercent: Number(e.target.value) })}
+                        placeholder="e.g. 4.5"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">UPI ID</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Banner Image URL</label>
                     <input 
                       type="text"
-                      value={settings.adminUpiId}
-                      onChange={(e) => setSettings({ ...settings, adminUpiId: e.target.value })}
-                      placeholder="e.g. 1234567890@upi"
+                      value={settings.bannerUrl || ""}
+                      onChange={(e) => setSettings({ ...settings, bannerUrl: e.target.value })}
+                      placeholder="https://example.com/banner.jpg"
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                      required
                     />
-                    <p className="text-[9px] font-bold text-gray-400 uppercase ml-2">This UPI ID will be shown to users for payments.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Telegram Channel</label>
+                      <input 
+                        type="text"
+                        value={settings.telegramChannelUrl}
+                        onChange={(e) => setSettings({ ...settings, telegramChannelUrl: e.target.value })}
+                        placeholder="https://t.me/..."
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Telegram Group</label>
+                      <input 
+                        type="text"
+                        value={settings.telegramGroupUrl}
+                        onChange={(e) => setSettings({ ...settings, telegramGroupUrl: e.target.value })}
+                        placeholder="https://t.me/..."
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Telegram Support ID</label>
+                    <input 
+                      type="text"
+                      value={settings.telegramSupportId}
+                      onChange={(e) => setSettings({ ...settings, telegramSupportId: e.target.value })}
+                      placeholder="@username"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -553,7 +629,6 @@ export default function AdminDashboard() {
                       placeholder="Your ImgBB API Key"
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     />
-                    <p className="text-[9px] font-bold text-gray-400 uppercase ml-2">If provided, screenshots will be uploaded to ImgBB instead of stored in Firestore.</p>
                   </div>
                 </div>
 
@@ -783,6 +858,22 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleUpdateUserRestriction(selectedUser.uid, { 
+                        sellRestrictedUntil: Date.now() + 30 * 60 * 1000 
+                      })}
+                      className="py-3 bg-gray-50 text-gray-600 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all"
+                    >
+                      30 Mins
+                    </button>
+                    <button
+                      onClick={() => handleUpdateUserRestriction(selectedUser.uid, { 
+                        sellRestrictedUntil: Date.now() + 50 * 60 * 1000 
+                      })}
+                      className="py-3 bg-gray-50 text-gray-600 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all"
+                    >
+                      50 Mins
+                    </button>
                     <button
                       onClick={() => handleUpdateUserRestriction(selectedUser.uid, { sellRestrictedUntil: 0 })}
                       className="col-span-2 py-3 bg-green-50 text-green-600 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all"

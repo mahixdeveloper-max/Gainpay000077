@@ -1,21 +1,46 @@
-import { UserProfile } from "../types";
-import { ChevronRight, User, Wallet, TrendingUp, History, Calendar, Play, Headphones, Lock, LogOut, ShieldCheck, X, CheckCircle2, AlertCircle } from "lucide-react";
-import { auth, handleFirestoreError, OperationType } from "../lib/firebase";
+import { UserProfile, AppSettings, Transaction } from "../types";
+import { ChevronRight, User, Wallet, TrendingUp, History, Calendar, Headphones, Lock, LogOut, ShieldCheck, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { auth, db } from "../lib/firebase";
 import { signOut, updatePassword } from "firebase/auth";
 import { Link } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { cn } from "../lib/utils";
 
 interface MineProps {
   profile: UserProfile | null;
+  settings: AppSettings | null;
 }
 
-export default function Mine({ profile }: MineProps) {
+export default function Mine({ profile, settings }: MineProps) {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
+  const [todayProfit, setTodayProfit] = useState(0);
+
+  useEffect(() => {
+    if (!profile) return;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const q = query(
+      collection(db, "transactions"),
+      where("userId", "==", profile.uid),
+      where("type", "==", "reward"),
+      where("createdAt", ">=", startOfDay.getTime())
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const total = snap.docs.reduce((acc, doc) => acc + (doc.data() as Transaction).amount, 0);
+      setTodayProfit(total);
+    });
+
+    return () => unsubscribe();
+  }, [profile]);
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -51,7 +76,7 @@ export default function Mine({ profile }: MineProps) {
 
   const menuItems = [
     { name: "IToken", value: profile?.balance?.toFixed(2) || "0.00", icon: Wallet, color: "text-green-600", bg: "bg-green-50", path: "/history" },
-    { name: "Today Profit", value: "0", icon: TrendingUp, color: "text-orange-500", bg: "bg-orange-50", path: "/history" },
+    { name: "Today Profit", value: `₹${todayProfit.toFixed(2)}`, icon: TrendingUp, color: "text-orange-500", bg: "bg-orange-50", path: "/history" },
     { name: "UPI Sell History", icon: History, color: "text-blue-500", bg: "bg-blue-50", path: "/history" },
     { name: "Buy History", icon: Calendar, color: "text-blue-600", bg: "bg-blue-50", path: "/history" },
     { name: "Transfer IToken History", icon: History, color: "text-blue-400", bg: "bg-blue-50", path: "/history" },
@@ -75,11 +100,11 @@ export default function Mine({ profile }: MineProps) {
           </div>
           <div className="flex-1 space-y-2">
             <div className="flex justify-between items-center">
-              <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{profile?.phone || "6491643491"}</p>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Reward:4.5%</p>
+              <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{profile?.phone || "N/A"}</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Reward:{settings?.globalRewardPercent || 4.5}%</p>
             </div>
             <div className="flex justify-between items-center">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">ID: {profile?.uid?.slice(0, 8) || "974973657"}</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Phone: {profile?.phone || "N/A"}</p>
               <ChevronRight size={20} className="text-gray-300" />
             </div>
           </div>
@@ -245,19 +270,14 @@ export default function Mine({ profile }: MineProps) {
                       For any issues regarding deposits, withdrawals, or account security, please contact our official support team on Telegram.
                     </p>
                     <a 
-                      href="https://t.me/gainpay_support" 
+                      href={`https://t.me/${settings?.telegramSupportId?.replace('@', '') || 'gainpay1'}`}
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="block w-full bg-white text-blue-600 py-3 rounded-xl text-[10px] font-black text-center border border-blue-100 hover:bg-blue-600 hover:text-white transition-all uppercase tracking-widest"
                     >
-                      Contact @gainpay_support
+                      Contact {settings?.telegramSupportId || "@gainpay1"}
                     </a>
                   </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Email Support</p>
-                  <p className="text-xs font-black text-gray-800">support@gainpay.com</p>
                 </div>
               </div>
             </div>
@@ -266,8 +286,4 @@ export default function Mine({ profile }: MineProps) {
       )}
     </div>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(" ");
 }

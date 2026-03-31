@@ -8,9 +8,10 @@ import { collection, addDoc, doc, onSnapshot, updateDoc } from "firebase/firesto
 
 interface BuyProps {
   profile: UserProfile | null;
+  settings: AppSettings | null;
 }
 
-export default function Buy({ profile }: BuyProps) {
+export default function Buy({ profile, settings }: BuyProps) {
   const [activeTab, setActiveTab] = useState<"UPI" | "USDT">("UPI");
   const [amount, setAmount] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -20,21 +21,14 @@ export default function Buy({ profile }: BuyProps) {
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({ adminUpiId: "6491643491@upi" });
   const [buyOptions, setBuyOptions] = useState<BuyOption[]>([]);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubSettings = onSnapshot(doc(db, "config", "settings"), (snap) => {
-      if (snap.exists()) {
-        setSettings(snap.data() as AppSettings);
-      }
-    });
     const unsubOptions = onSnapshot(collection(db, "buyOptions"), (snap) => {
       setBuyOptions(snap.docs.map(d => ({ ...d.data(), id: d.id } as BuyOption)));
     });
     return () => {
-      unsubSettings();
       unsubOptions();
     };
   }, []);
@@ -71,7 +65,7 @@ export default function Buy({ profile }: BuyProps) {
       let finalScreenshot = screenshot || "";
 
       // Upload to ImgBB if API key is present
-      if (screenshot && settings.imgbbApiKey) {
+      if (screenshot && settings?.imgbbApiKey) {
         try {
           // Remove data:image/xxx;base64, prefix
           const base64Data = screenshot.split(",")[1];
@@ -97,8 +91,8 @@ export default function Buy({ profile }: BuyProps) {
       }
 
       const selectedOption = buyOptions.find(o => o.id === selectedOptionId);
-      const targetAdminUpiId = selectedOption?.upiId || settings.adminUpiId;
-      const rewardPercent = selectedOption?.rewardPercent || 4.5;
+      const targetAdminUpiId = selectedOption?.upiId || settings?.adminUpiId || "";
+      const rewardPercent = selectedOption?.rewardPercent || settings?.globalRewardPercent || 4.5;
 
       await addDoc(collection(db, path), {
         userId: profile.uid,
@@ -311,10 +305,10 @@ export default function Buy({ profile }: BuyProps) {
                   <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest text-center">Pay to this UPI</p>
                   <div className="flex items-center justify-center space-x-2">
                     <p className="text-lg font-black text-blue-600 tracking-tight">
-                      {buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings.adminUpiId}
+                      {buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings?.adminUpiId || "N/A"}
                     </p>
                     <button 
-                      onClick={() => copyToClipboard(buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings.adminUpiId)} 
+                      onClick={() => copyToClipboard(buyOptions.find(o => o.id === selectedOptionId)?.upiId || settings?.adminUpiId || "")} 
                       className="text-blue-400"
                     >
                       <Copy size={14} />
