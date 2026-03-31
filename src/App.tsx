@@ -86,7 +86,7 @@ export default function App() {
             <Route path="/team" element={<Team profile={profile} />} />
             <Route path="/mine" element={<Mine profile={profile} settings={settings} />} />
             <Route path="/history" element={<History profile={profile} />} />
-            <Route path="/event-center" element={<EventCenter profile={profile} />} />
+            <Route path="/event-center" element={<EventCenter profile={profile} settings={settings} />} />
           </Route>
 
           <Route path="/admin" element={<AdminLogin />} />
