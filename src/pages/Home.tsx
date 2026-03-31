@@ -1,9 +1,10 @@
 import { UserProfile, AppSettings, Transaction } from "../types";
-import { Bell, ChevronRight, Headphones } from "lucide-react";
+import { Bell, ChevronRight, Headphones, Send } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, increment } from "firebase/firestore";
+import { cn } from "../lib/utils";
 
 interface HomeProps {
   profile: UserProfile | null;
@@ -12,6 +13,45 @@ interface HomeProps {
 
 export default function Home({ profile, settings }: HomeProps) {
   const [todayProfit, setTodayProfit] = useState(0);
+  const [checkingIn, setCheckingIn] = useState(false);
+
+  const handleDailyCheckIn = async () => {
+    if (!profile || checkingIn) return;
+    
+    const today = new Date().toLocaleDateString();
+    if (profile.lastCheckIn === today) {
+      alert("You have already checked in today!");
+      return;
+    }
+
+    setCheckingIn(true);
+    try {
+      const rewardAmount = 10; // Daily reward amount
+      
+      // 1. Update user balance and last check-in date
+      await updateDoc(doc(db, "users", profile.uid), {
+        balance: increment(rewardAmount),
+        lastCheckIn: today
+      });
+
+      // 2. Add reward transaction
+      await addDoc(collection(db, "transactions"), {
+        userId: profile.uid,
+        type: "reward",
+        amount: rewardAmount,
+        status: "completed",
+        createdAt: Date.now(),
+        description: "Daily Check-in Reward"
+      });
+
+      alert(`Daily Check-in successful! You received ₹${rewardAmount}`);
+    } catch (error) {
+      console.error("Error during check-in:", error);
+      alert("Failed to check in. Please try again.");
+    } finally {
+      setCheckingIn(false);
+    }
+  };
 
   useEffect(() => {
     if (!profile) return;
@@ -109,6 +149,19 @@ export default function Home({ profile, settings }: HomeProps) {
           </Link>
         </div>
 
+        <button 
+          onClick={handleDailyCheckIn}
+          disabled={checkingIn || profile?.lastCheckIn === new Date().toLocaleDateString()}
+          className={cn(
+            "w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg",
+            profile?.lastCheckIn === new Date().toLocaleDateString()
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+              : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-100"
+          )}
+        >
+          {profile?.lastCheckIn === new Date().toLocaleDateString() ? "Checked In Today ✅" : "Daily Check-in (₹10)"}
+        </button>
+
         <div className="grid grid-cols-2 gap-4 pt-2">
           <div className="space-y-1">
             <p className="text-gray-400 text-[10px] font-bold uppercase">Auto Selling</p>
@@ -121,19 +174,34 @@ export default function Home({ profile, settings }: HomeProps) {
         </div>
       </div>
 
-      {/* Official Group */}
-      <a 
-        href={settings?.telegramGroupUrl || "https://t.me/gainpayy"} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center space-x-3">
-          <Bell size={16} className="text-gray-400" />
-          <span className="text-xs font-bold text-gray-600">Official Group</span>
-        </div>
-        <ChevronRight size={16} className="text-gray-300" />
-      </a>
+      {/* Official Links */}
+      <div className="grid grid-cols-2 gap-4">
+        <a 
+          href={settings?.telegramGroupUrl || "https://t.me/gainpayy"} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center space-x-3">
+            <Bell size={16} className="text-gray-400" />
+            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tight">Official Group</span>
+          </div>
+          <ChevronRight size={14} className="text-gray-300" />
+        </a>
+
+        <a 
+          href={settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel"} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center space-x-3">
+            <Send size={16} className="text-gray-400" />
+            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tight">Official Channel</span>
+          </div>
+          <ChevronRight size={14} className="text-gray-300" />
+        </a>
+      </div>
 
       {/* News */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6">

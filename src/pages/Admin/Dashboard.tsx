@@ -29,6 +29,7 @@ export default function AdminDashboard() {
   const [newOrderRewardPercent, setNewOrderRewardPercent] = useState("4.5");
   const [searchTerm, setSearchTerm] = useState("");
   const [customMinutes, setCustomMinutes] = useState("60");
+  const [editBalance, setEditBalance] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const navigate = useNavigate();
 
@@ -522,7 +523,10 @@ export default function AdminDashboard() {
                         </td>
                         <td className="p-4 text-right space-x-2">
                           <button 
-                            onClick={() => setSelectedUser(u)}
+                            onClick={() => {
+                              setSelectedUser(u);
+                              setEditBalance(u.balance.toString());
+                            }}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                             title="Manage Restrictions"
                           >
@@ -815,7 +819,29 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                {/* Balance Editing */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Edit Balance (IToken)</label>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="number"
+                      placeholder="Enter balance"
+                      value={editBalance}
+                      onChange={(e) => setEditBalance(e.target.value)}
+                      className="flex-1 bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                    <button
+                      onClick={() => handleUpdateUserRestriction(selectedUser.uid, { 
+                        balance: Number(editBalance) 
+                      })}
+                      className="bg-green-600 text-white px-6 py-4 rounded-xl text-xs font-black shadow-lg shadow-green-100 hover:bg-green-700 transition-all uppercase tracking-widest"
+                    >
+                      Update
+                    </button>
+                  </div>
+                </div>
+
                 {/* UPI Status */}
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">UPI Selling Status</label>

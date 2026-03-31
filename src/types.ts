@@ -14,6 +14,7 @@ export interface UserProfile {
   sellRestrictedUntil?: number;
   sellStatus?: "active" | "waiting" | "stopped";
   completedTasks?: string[];
+  lastCheckIn?: string;
 }
 
 export interface Transaction {

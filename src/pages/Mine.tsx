@@ -277,6 +277,14 @@ export default function Mine({ profile, settings }: MineProps) {
                     >
                       Contact {settings?.telegramSupportId || "@gainpay1"}
                     </a>
+                    <a 
+                      href={settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel"}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block w-full bg-blue-600 text-white py-3 rounded-xl text-[10px] font-black text-center border border-blue-500 hover:bg-blue-700 transition-all uppercase tracking-widest"
+                    >
+                      Join Official Channel
+                    </a>
                   </div>
                 </div>
               </div>
