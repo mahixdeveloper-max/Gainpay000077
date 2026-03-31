@@ -30,13 +30,20 @@ export default function Mine({ profile, settings }: MineProps) {
     const q = query(
       collection(db, "transactions"),
       where("userId", "==", profile.uid),
-      where("type", "==", "reward"),
       where("createdAt", ">=", startOfDay.getTime())
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      const total = snap.docs.reduce((acc, doc) => acc + (doc.data() as Transaction).amount, 0);
+      const total = snap.docs.reduce((acc, doc) => {
+        const tx = doc.data() as Transaction;
+        if (tx.type === "reward" || tx.type === "commission") {
+          return acc + tx.amount;
+        }
+        return acc;
+      }, 0);
       setTodayProfit(total);
+    }, (error) => {
+      console.error("Error fetching today profit:", error);
     });
 
     return () => unsubscribe();

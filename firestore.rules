@@ -91,13 +91,18 @@ service cloud.firestore {
              data.isBlocked is bool &&
              data.role in ['admin', 'user'] &&
              data.createdAt is number &&
-             data.referralCode is string;
+             data.referralCode is string &&
+             (!('lastProfitDate' in data) || data.lastProfitDate is string) &&
+             (!('bonusClaimed' in data) || data.bonusClaimed is bool) &&
+             (!('completedTasks' in data) || data.completedTasks is list) &&
+             (!('sellRestrictedUntil' in data) || data.sellRestrictedUntil is number) &&
+             (!('upiIds' in data) || data.upiIds is list);
     }
 
     function isValidTransaction(data) {
       return hasRequiredFields(['userId', 'type', 'amount', 'status', 'createdAt']) &&
              data.userId is string &&
-             data.type in ['deposit', 'buy', 'sell', 'transfer', 'commission'] &&
+             data.type in ['deposit', 'buy', 'sell', 'transfer', 'commission', 'reward'] &&
              data.amount is number && data.amount >= 0 &&
              data.status in ['pending', 'approved', 'rejected', 'completed'] &&
              data.createdAt is number;
@@ -144,13 +149,13 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
-      allow update: if isAdmin() || (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role && request.resource.data.balance == resource.data.balance);
+      allow update: if isAdmin() || (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role);
     }
 
     // Transactions
     match /transactions/{txId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAdmin() && isValidTransaction(request.resource.data);
+      allow create: if isAuthenticated() && (isAdmin() || (isOwner(request.resource.data.userId) && request.resource.data.type in ['reward', 'commission'])) && isValidTransaction(request.resource.data);
       allow update: if isAdmin() && isValidTransaction(request.resource.data);
     }
 

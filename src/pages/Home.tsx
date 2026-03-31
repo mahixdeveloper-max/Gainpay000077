@@ -15,6 +15,48 @@ export default function Home({ profile, settings }: HomeProps) {
   const [todayProfit, setTodayProfit] = useState(0);
 
   useEffect(() => {
+    if (!profile || !settings) return;
+
+    const today = new Date().toLocaleDateString();
+    if (profile.lastProfitDate === today) return;
+
+    const generateDailyProfit = async () => {
+      try {
+        // Calculate 5% of balance as daily profit
+        const rewardPercent = settings.globalRewardPercent || 5;
+        const profitAmount = profile.balance * (rewardPercent / 100);
+
+        if (profitAmount > 0) {
+          // 1. Update user balance and last profit date
+          await updateDoc(doc(db, "users", profile.uid), {
+            balance: increment(profitAmount),
+            lastProfitDate: today
+          });
+
+          // 2. Add reward transaction
+          await addDoc(collection(db, "transactions"), {
+            userId: profile.uid,
+            type: "reward",
+            amount: profitAmount,
+            status: "completed",
+            createdAt: Date.now(),
+            description: `Daily Profit (${rewardPercent}%)`
+          });
+        } else {
+          // Even if profit is 0, update the date so we don't keep checking
+          await updateDoc(doc(db, "users", profile.uid), {
+            lastProfitDate: today
+          });
+        }
+      } catch (error) {
+        console.error("Error generating daily profit:", error);
+      }
+    };
+
+    generateDailyProfit();
+  }, [profile, settings]);
+
+  useEffect(() => {
     if (!profile) return;
 
     const startOfDay = new Date();
@@ -23,13 +65,20 @@ export default function Home({ profile, settings }: HomeProps) {
     const q = query(
       collection(db, "transactions"),
       where("userId", "==", profile.uid),
-      where("type", "==", "reward"),
       where("createdAt", ">=", startOfDay.getTime())
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      const total = snap.docs.reduce((acc, doc) => acc + (doc.data() as Transaction).amount, 0);
+      const total = snap.docs.reduce((acc, doc) => {
+        const tx = doc.data() as Transaction;
+        if (tx.type === "reward" || tx.type === "commission") {
+          return acc + tx.amount;
+        }
+        return acc;
+      }, 0);
       setTodayProfit(total);
+    }, (error) => {
+      console.error("Error fetching today profit:", error);
     });
 
     return () => unsubscribe();

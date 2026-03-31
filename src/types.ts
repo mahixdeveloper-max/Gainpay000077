@@ -15,6 +15,7 @@ export interface UserProfile {
   sellStatus?: "active" | "waiting" | "stopped";
   completedTasks?: string[];
   bonusClaimed?: boolean;
+  lastProfitDate?: string;
 }
 
 export interface Transaction {
