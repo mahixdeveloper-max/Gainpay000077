@@ -19,7 +19,6 @@ import Register from "./pages/Register";
 import AdminDashboard from "./pages/Admin/Dashboard";
 import AdminLogin from "./pages/Admin/Login";
 import Layout from "./components/Layout";
-import FeedbackButton from "./components/FeedbackButton";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -100,7 +99,6 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Router>
-        {user && <FeedbackButton />}
         <Routes>
           <Route path="/login" element={!user ? <Login /> : (profile ? <Navigate to="/" /> : <Navigate to="/register" />)} />
           <Route path="/register" element={!profile ? <Register /> : <Navigate to="/" />} />
