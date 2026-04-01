@@ -106,6 +106,17 @@ export default function Home({ profile, settings }: HomeProps) {
     };
   }, [profile]);
 
+  const openTelegram = (url: string) => {
+    if (!url) return;
+    const username = url.split('/').pop()?.replace('@', '');
+    if (username && /Android/i.test(navigator.userAgent)) {
+      const intentUrl = `intent://resolve?domain=${username}#Intent;scheme=tg;package=org.telegram.messenger;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+      window.location.href = intentUrl;
+    } else {
+      window.location.href = url;
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-4 p-4">
       {/* Banner */}
@@ -196,7 +207,7 @@ export default function Home({ profile, settings }: HomeProps) {
       {/* Official Links */}
       <div className="grid grid-cols-2 gap-4">
         <button 
-          onClick={() => window.location.href = settings?.telegramGroupUrl || "https://t.me/gainpayy"}
+          onClick={() => openTelegram(settings?.telegramGroupUrl || "https://t.me/gainpayy")}
           className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors w-full text-left"
         >
           <div className="flex items-center space-x-3">
@@ -207,7 +218,7 @@ export default function Home({ profile, settings }: HomeProps) {
         </button>
 
         <button 
-          onClick={() => window.location.href = settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel"}
+          onClick={() => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel")}
           className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors w-full text-left"
         >
           <div className="flex items-center space-x-3">

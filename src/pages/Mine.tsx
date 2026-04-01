@@ -49,6 +49,17 @@ export default function Mine({ profile, settings }: MineProps) {
     return () => unsubscribe();
   }, [profile]);
 
+  const openTelegram = (url: string) => {
+    if (!url) return;
+    const username = url.split('/').pop()?.replace('@', '');
+    if (username && /Android/i.test(navigator.userAgent)) {
+      const intentUrl = `intent://resolve?domain=${username}#Intent;scheme=tg;package=org.telegram.messenger;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+      window.location.href = intentUrl;
+    } else {
+      window.location.href = url;
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut(auth);
   };
@@ -277,13 +288,13 @@ export default function Mine({ profile, settings }: MineProps) {
                       For any issues regarding deposits, withdrawals, or account security, please contact our official support team on Telegram.
                     </p>
                     <button 
-                      onClick={() => window.location.href = `https://t.me/${settings?.telegramSupportId?.replace('@', '') || 'gainpay1'}`}
+                      onClick={() => openTelegram(`https://t.me/${settings?.telegramSupportId?.replace('@', '') || 'gainpay1'}`)}
                       className="block w-full bg-white text-blue-600 py-3 rounded-xl text-[10px] font-black text-center border border-blue-100 hover:bg-blue-600 hover:text-white transition-all uppercase tracking-widest"
                     >
                       Contact {settings?.telegramSupportId || "@gainpay1"}
                     </button>
                     <button 
-                      onClick={() => window.location.href = settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel"}
+                      onClick={() => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel")}
                       className="block w-full bg-blue-600 text-white py-3 rounded-xl text-[10px] font-black text-center border border-blue-500 hover:bg-blue-700 transition-all uppercase tracking-widest"
                     >
                       Join Official Channel

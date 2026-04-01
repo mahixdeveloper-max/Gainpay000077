@@ -16,6 +16,17 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [hasPurchased5000, setHasPurchased5000] = useState(false);
 
+  const openTelegram = (url: string) => {
+    if (!url) return;
+    const username = url.split('/').pop()?.replace('@', '');
+    if (username && /Android/i.test(navigator.userAgent)) {
+      const intentUrl = `intent://resolve?domain=${username}#Intent;scheme=tg;package=org.telegram.messenger;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+      window.location.href = intentUrl;
+    } else {
+      window.location.href = url;
+    }
+  };
+
   React.useEffect(() => {
     if (!profile) return;
 
@@ -61,7 +72,7 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
       color: "text-blue-500", 
       bg: "bg-blue-50", 
       status: profile?.completedTasks?.includes("subscribe") ? "Done" : "Pending",
-      action: () => window.location.href = settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel",
+      action: () => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel"),
       autoComplete: true
     },
     { 
@@ -71,7 +82,7 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
       color: "text-blue-400", 
       bg: "bg-blue-50", 
       status: profile?.completedTasks?.includes("join_vip") ? "Done" : "Pending",
-      action: () => window.location.href = settings?.telegramGroupUrl || "https://t.me/gainpayy",
+      action: () => openTelegram(settings?.telegramGroupUrl || "https://t.me/gainpayy"),
       autoComplete: true
     },
     { 
