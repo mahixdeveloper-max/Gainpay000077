@@ -76,7 +76,7 @@ export default function Home({ profile, settings }: HomeProps) {
         console.log("Transactions found:", snap.docs.length);
         const total = snap.docs.reduce((acc, doc) => {
           const tx = doc.data() as Transaction;
-          console.log("Transaction:", tx);
+          console.log("Transaction:", tx.type, tx.amount, tx.createdAt);
           if (tx.type === "reward" || tx.type === "commission") {
             return acc + tx.amount;
           }
