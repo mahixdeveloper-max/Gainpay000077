@@ -86,7 +86,17 @@ export default function AdminDashboard() {
     e.preventDefault();
     setSavingSettings(true);
     try {
-      await setDoc(doc(db, "config", "settings"), settings, { merge: true });
+      // Sanitize Telegram links
+      const sanitizedSettings = { ...settings };
+      if (sanitizedSettings.telegramChannelUrl && !sanitizedSettings.telegramChannelUrl.startsWith("http")) {
+        sanitizedSettings.telegramChannelUrl = `https://t.me/${sanitizedSettings.telegramChannelUrl.replace("@", "")}`;
+      }
+      if (sanitizedSettings.telegramGroupUrl && !sanitizedSettings.telegramGroupUrl.startsWith("http")) {
+        sanitizedSettings.telegramGroupUrl = `https://t.me/${sanitizedSettings.telegramGroupUrl.replace("@", "")}`;
+      }
+      
+      await setDoc(doc(db, "config", "settings"), sanitizedSettings, { merge: true });
+      setSettings(sanitizedSettings);
       alert("Settings updated successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, "config/settings");

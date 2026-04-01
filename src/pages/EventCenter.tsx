@@ -61,7 +61,7 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
       color: "text-blue-500", 
       bg: "bg-blue-50", 
       status: profile?.completedTasks?.includes("subscribe") ? "Done" : "Pending",
-      action: () => window.open(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel", "_blank"),
+      action: () => window.location.href = settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel",
       autoComplete: true
     },
     { 
@@ -71,7 +71,7 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
       color: "text-blue-400", 
       bg: "bg-blue-50", 
       status: profile?.completedTasks?.includes("join_vip") ? "Done" : "Pending",
-      action: () => window.open(settings?.telegramGroupUrl || "https://t.me/gainpayy", "_blank"),
+      action: () => window.location.href = settings?.telegramGroupUrl || "https://t.me/gainpayy",
       autoComplete: true
     },
     { 

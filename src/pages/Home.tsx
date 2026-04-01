@@ -195,31 +195,27 @@ export default function Home({ profile, settings }: HomeProps) {
 
       {/* Official Links */}
       <div className="grid grid-cols-2 gap-4">
-        <a 
-          href={settings?.telegramGroupUrl || "https://t.me/gainpayy"} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors"
+        <button 
+          onClick={() => window.location.href = settings?.telegramGroupUrl || "https://t.me/gainpayy"}
+          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors w-full text-left"
         >
           <div className="flex items-center space-x-3">
             <Bell size={16} className="text-gray-400" />
             <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tight">Official Group</span>
           </div>
           <ChevronRight size={14} className="text-gray-300" />
-        </a>
+        </button>
 
-        <a 
-          href={settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel"} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors"
+        <button 
+          onClick={() => window.location.href = settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel"}
+          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors w-full text-left"
         >
           <div className="flex items-center space-x-3">
             <Send size={16} className="text-gray-400" />
             <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tight">Official Channel</span>
           </div>
           <ChevronRight size={14} className="text-gray-300" />
-        </a>
+        </button>
       </div>
 
       {/* News */}
