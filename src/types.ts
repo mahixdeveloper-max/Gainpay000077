@@ -16,6 +16,9 @@ export interface UserProfile {
   completedTasks?: string[];
   bonusClaimed?: boolean;
   lastProfitDate?: string;
+  isVerified?: boolean;
+  verificationAttempts?: number;
+  blockedUntil?: number;
 }
 
 export interface Transaction {

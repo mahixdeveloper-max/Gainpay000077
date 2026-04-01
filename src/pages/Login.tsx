@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { auth, db } from "../lib/firebase";
+import { auth } from "../lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
-import { Phone, Lock, CheckCircle2, Circle } from "lucide-react";
+import { Phone, Lock, CheckCircle2 } from "lucide-react";
 import { cn } from "../lib/utils";
 
 export default function Login() {

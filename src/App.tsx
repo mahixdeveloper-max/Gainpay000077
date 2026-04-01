@@ -19,6 +19,7 @@ import Register from "./pages/Register";
 import AdminDashboard from "./pages/Admin/Dashboard";
 import AdminLogin from "./pages/Admin/Login";
 import Layout from "./components/Layout";
+import WhatsAppVerification from "./components/WhatsAppVerification";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -28,28 +29,46 @@ export default function App() {
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | undefined;
+    let unsubscribeSettings: (() => void) | undefined;
     
-    // Fetch settings
-    const unsubscribeSettings = onSnapshot(doc(db, "config", "settings"), (snap) => {
-      if (snap.exists()) {
-        setSettings(snap.data() as AppSettings);
-      }
-    });
-
     const unsubscribeAuth = onAuthStateChanged(auth, async (u) => {
+      // Unsubscribe previous listeners if they exist
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = undefined;
+      }
+      if (unsubscribeSettings) {
+        unsubscribeSettings();
+        unsubscribeSettings = undefined;
+      }
+
       setUser(u);
       if (u) {
+        // Fetch settings - only when authenticated
+        unsubscribeSettings = onSnapshot(doc(db, "config", "settings"), (snap) => {
+          if (snap.exists()) {
+            setSettings(snap.data() as AppSettings);
+          }
+        }, (error) => {
+          console.warn("Settings listener restricted:", error.message);
+        });
+
         const path = `users/${u.uid}`;
         unsubscribeProfile = onSnapshot(
           doc(db, "users", u.uid),
           (docSnap) => {
             if (docSnap.exists()) {
               setProfile({ ...docSnap.data(), uid: docSnap.id } as UserProfile);
+            } else {
+              setProfile(null);
             }
             setLoading(false);
           },
           (error) => {
-            handleFirestoreError(error, OperationType.GET, path);
+            // Only handle error if we are still logged in as this user
+            if (auth.currentUser?.uid === u.uid) {
+              handleFirestoreError(error, OperationType.GET, path);
+            }
           }
         );
       } else {
@@ -57,9 +76,10 @@ export default function App() {
         setLoading(false);
       }
     });
+
     return () => {
       unsubscribeAuth();
-      unsubscribeSettings();
+      if (unsubscribeSettings) unsubscribeSettings();
       if (unsubscribeProfile) unsubscribeProfile();
     };
   }, []);
@@ -72,14 +92,20 @@ export default function App() {
     );
   }
 
+  // Logic for redirection
+  // 1. If not logged in -> can only access /login, /register, /admin
+  // 2. If logged in but no profile -> must go to /register to complete setup
+  // 3. If logged in and has profile -> can access everything
+
   return (
     <ErrorBoundary>
       <Router>
+        {user && profile && !profile.isVerified && <WhatsAppVerification profile={profile} />}
         <Routes>
-          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-          <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
+          <Route path="/login" element={!user ? <Login /> : (profile ? <Navigate to="/" /> : <Navigate to="/register" />)} />
+          <Route path="/register" element={!profile ? <Register /> : <Navigate to="/" />} />
           
-          <Route element={user ? <Layout profile={profile} /> : <Navigate to="/login" />}>
+          <Route element={user ? (profile ? <Layout profile={profile} /> : <Navigate to="/register" />) : <Navigate to="/login" />}>
             <Route path="/" element={<Home profile={profile} settings={settings} />} />
             <Route path="/buy" element={<Buy profile={profile} settings={settings} />} />
             <Route path="/upi" element={<UPI profile={profile} settings={settings} />} />

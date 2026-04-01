@@ -24,6 +24,8 @@ export default function Team({ profile }: TeamProps) {
     const qTeam = query(collection(db, "users"), where("referredBy", "==", profile.referralCode));
     const unsubTeam = onSnapshot(qTeam, (snapshot) => {
       setTeamCount(snapshot.size);
+    }, (error) => {
+      console.error("Error fetching team count:", error);
     });
 
     // Fetch total commission
@@ -35,6 +37,8 @@ export default function Team({ profile }: TeamProps) {
     const unsubComm = onSnapshot(qComm, (snapshot) => {
       const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().amount || 0), 0);
       setTotalCommission(total);
+    }, (error) => {
+      console.error("Error fetching team commissions:", error);
     });
 
     return () => {

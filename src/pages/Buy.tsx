@@ -27,6 +27,8 @@ export default function Buy({ profile, settings }: BuyProps) {
   useEffect(() => {
     const unsubOptions = onSnapshot(collection(db, "buyOptions"), (snap) => {
       setBuyOptions(snap.docs.map(d => ({ ...d.data(), id: d.id } as BuyOption)));
+    }, (error) => {
+      console.error("Error fetching buy options:", error);
     });
     return () => {
       unsubOptions();

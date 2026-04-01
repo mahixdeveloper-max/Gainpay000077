@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { auth, db, handleFirestoreError, OperationType } from "../lib/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Phone, Lock, User, CheckCircle2 } from "lucide-react";
@@ -33,7 +33,10 @@ export default function Register() {
     setLoading(true);
     setError("");
     try {
-      const { user } = await createUserWithEmailAndPassword(auth, `${phone}@gainpay.com`, password);
+      // Firebase Auth uses email, so we'll use phone + "@gainpay.com" as a placeholder
+      const userCredential = await createUserWithEmailAndPassword(auth, `${phone}@gainpay.com`, password);
+      const user = userCredential.user;
+      
       const wallet = await generateWallet();
       const encryptedPrivateKey = encryptPrivateKey(wallet.privateKey);
 

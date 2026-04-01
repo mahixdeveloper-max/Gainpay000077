@@ -35,10 +35,15 @@ export default function History({ profile }: HistoryProps) {
     const unsubBuy = onSnapshot(buyQuery, (snap) => {
       setBuyHistory(snap.docs.map(d => ({ ...d.data(), id: d.id } as BuyRequest)));
       setLoading(false);
+    }, (error) => {
+      console.error("Error fetching buy history:", error);
+      setLoading(false);
     });
 
     const unsubSell = onSnapshot(sellQuery, (snap) => {
       setSellHistory(snap.docs.map(d => ({ ...d.data(), id: d.id } as SellRequest)));
+    }, (error) => {
+      console.error("Error fetching sell history:", error);
     });
 
     return () => {

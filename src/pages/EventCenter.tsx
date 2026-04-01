@@ -46,6 +46,8 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
           console.error("Error auto-completing purchase task:", e);
         }
       }
+    }, (error) => {
+      console.error("Error checking purchase task:", error);
     });
 
     return () => unsubscribe();

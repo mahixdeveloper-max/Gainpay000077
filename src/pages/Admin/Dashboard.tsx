@@ -4,9 +4,10 @@ import { collection, query, getDocs, updateDoc, doc, onSnapshot, addDoc, increme
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { UserProfile, Transaction, BuyRequest, SellRequest, BuyOption } from "../../types";
-import { Users, CreditCard, ShoppingCart, History, Check, X, Ban, Unlock, TrendingUp, LogOut, Settings, Save, Plus, Trash2, Package } from "lucide-react";
+import { Users, CreditCard, ShoppingCart, History, Check, X, Ban, Unlock, TrendingUp, LogOut, Settings, Save, Plus, Trash2, Package, MessageSquare, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AppSettings } from "../../types";
+import { QRCodeCanvas } from "qrcode.react";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -21,8 +22,10 @@ export default function AdminDashboard() {
     telegramGroupUrl: "https://t.me/gainpayy",
     telegramSupportId: "@gainpay1"
   });
-  const [activeTab, setActiveTab] = useState<"users" | "buys" | "sells" | "txs" | "settings" | "orders">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "buys" | "sells" | "txs" | "settings" | "orders" | "whatsapp">("users");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [whatsappStatus, setWhatsappStatus] = useState<{ isReady: boolean; qrCode: string | null }>({ isReady: false, qrCode: null });
+  const [loadingWhatsapp, setLoadingWhatsapp] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [newOrderAmount, setNewOrderAmount] = useState("");
   const [newOrderUpiId, setNewOrderUpiId] = useState("");
@@ -82,6 +85,25 @@ export default function AdminDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    let interval: any;
+    if (activeTab === "whatsapp") {
+      fetchWhatsappStatus();
+      interval = setInterval(fetchWhatsappStatus, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  const fetchWhatsappStatus = async () => {
+    try {
+      const res = await fetch("/api/admin/whatsapp/status");
+      const data = await res.json();
+      setWhatsappStatus(data);
+    } catch (error) {
+      console.error("Error fetching WhatsApp status:", error);
+    }
+  };
+
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingSettings(true);
@@ -89,7 +111,7 @@ export default function AdminDashboard() {
       await setDoc(doc(db, "config", "settings"), settings, { merge: true });
       alert("Settings updated successfully!");
     } catch (error) {
-      console.error("Error saving settings:", error);
+      handleFirestoreError(error, OperationType.WRITE, "config/settings");
       alert("Failed to save settings. Check console for details.");
     } finally {
       setSavingSettings(false);
@@ -421,10 +443,82 @@ export default function AdminDashboard() {
             <Settings size={18} />
             <span>Settings</span>
           </button>
+          <button 
+            onClick={() => setActiveTab("whatsapp")}
+            className={cn("flex items-center space-x-3 p-3 rounded-xl text-sm font-black transition-all whitespace-nowrap md:w-full", activeTab === "whatsapp" ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-gray-500 hover:bg-gray-50")}
+          >
+            <MessageSquare size={18} />
+            <span>WhatsApp</span>
+          </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          {activeTab === "whatsapp" && (
+            <div className="max-w-2xl space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">WhatsApp Connection</h2>
+                <button 
+                  onClick={fetchWhatsappStatus}
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all"
+                >
+                  <RefreshCw size={20} className={cn(loadingWhatsapp && "animate-spin")} />
+                </button>
+              </div>
+
+              <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-8 text-center">
+                {whatsappStatus.isReady ? (
+                  <div className="space-y-4">
+                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                      <Check size={40} />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">WhatsApp Connected</h3>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Your automation service is active and ready.</p>
+                    </div>
+                    <div className="pt-4">
+                      <div className="inline-flex items-center space-x-2 bg-green-50 text-green-700 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span>Service Online</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="w-20 h-20 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto">
+                      <MessageSquare size={40} />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Connect WhatsApp</h3>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Scan the QR code below with your WhatsApp app to start the service.</p>
+                    </div>
+
+                    {whatsappStatus.qrCode ? (
+                      <div className="bg-white p-4 inline-block rounded-2xl border-4 border-gray-50 shadow-inner">
+                        <QRCodeCanvas value={whatsappStatus.qrCode} size={256} />
+                      </div>
+                    ) : (
+                      <div className="py-12 space-y-4">
+                        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Waiting for QR code...</p>
+                      </div>
+                    )}
+
+                    <div className="bg-blue-50 p-4 rounded-2xl text-left space-y-2">
+                      <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Instructions:</p>
+                      <ol className="text-[10px] font-bold text-blue-600 space-y-1 list-decimal list-inside">
+                        <li>Open WhatsApp on your phone</li>
+                        <li>Tap Menu or Settings and select Linked Devices</li>
+                        <li>Tap on Link a Device</li>
+                        <li>Point your phone to this screen to capture the code</li>
+                      </ol>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === "orders" && (
             <div className="space-y-8">
               <div className="flex justify-between items-center">
