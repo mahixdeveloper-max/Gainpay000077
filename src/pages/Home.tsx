@@ -60,22 +60,23 @@ export default function Home({ profile, settings }: HomeProps) {
     if (!profile) return;
 
     let unsubscribe: (() => void) | undefined;
+    let currentStartOfDay = new Date();
+    currentStartOfDay.setHours(0, 0, 0, 0);
 
     const startListening = () => {
       if (unsubscribe) unsubscribe();
 
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-
       const q = query(
         collection(db, "transactions"),
         where("userId", "==", profile.uid),
-        where("createdAt", ">=", startOfDay.getTime())
+        where("createdAt", ">=", currentStartOfDay.getTime())
       );
 
       unsubscribe = onSnapshot(q, (snap) => {
+        console.log("Transactions found:", snap.docs.length);
         const total = snap.docs.reduce((acc, doc) => {
           const tx = doc.data() as Transaction;
+          console.log("Transaction:", tx);
           if (tx.type === "reward" || tx.type === "commission") {
             return acc + tx.amount;
           }
@@ -92,7 +93,9 @@ export default function Home({ profile, settings }: HomeProps) {
     // Check for midnight reset
     const interval = setInterval(() => {
       const now = new Date();
-      if (now.getHours() === 0 && now.getMinutes() === 0) {
+      if (now.getTime() >= currentStartOfDay.getTime() + 24 * 60 * 60 * 1000) {
+        currentStartOfDay = new Date();
+        currentStartOfDay.setHours(0, 0, 0, 0);
         startListening();
       }
     }, 60000); // Check every minute
