@@ -12,6 +12,7 @@ interface TeamProps {
 export default function Team({ profile }: TeamProps) {
   const [teamCount, setTeamCount] = useState(0);
   const [totalCommission, setTotalCommission] = useState(0);
+  const [todayProfit, setTodayProfit] = useState(0);
   const [showQR, setShowQR] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -46,9 +47,31 @@ export default function Team({ profile }: TeamProps) {
       console.error("Error fetching total profit:", error);
     });
 
+    // Fetch today profit
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const qTodayProfit = query(
+      collection(db, "transactions"),
+      where("userId", "==", profile.uid),
+      where("createdAt", ">=", startOfDay.getTime())
+    );
+    const unsubTodayProfit = onSnapshot(qTodayProfit, (snapshot) => {
+      const total = snapshot.docs.reduce((acc, doc) => {
+        const tx = doc.data();
+        if (tx.type === "reward" || tx.type === "commission") {
+          return acc + (tx.amount || 0);
+        }
+        return acc;
+      }, 0);
+      setTodayProfit(total);
+    }, (error) => {
+      console.error("Error fetching today profit:", error);
+    });
+
     return () => {
       unsubTeam();
       unsubProfit();
+      unsubTodayProfit();
     };
   }, [profile]);
 
@@ -114,7 +137,7 @@ export default function Team({ profile }: TeamProps) {
               <p className="text-xs font-black text-gray-800 uppercase tracking-tight">My Total Profit</p>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-black text-blue-600">₹0.00</span>
+              <span className="text-sm font-black text-blue-600">₹{todayProfit.toFixed(2)}</span>
               <ChevronRight size={16} className="text-gray-300" />
             </div>
           </div>
