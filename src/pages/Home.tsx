@@ -59,29 +59,48 @@ export default function Home({ profile, settings }: HomeProps) {
   useEffect(() => {
     if (!profile) return;
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    let unsubscribe: (() => void) | undefined;
 
-    const q = query(
-      collection(db, "transactions"),
-      where("userId", "==", profile.uid),
-      where("createdAt", ">=", startOfDay.getTime())
-    );
+    const startListening = () => {
+      if (unsubscribe) unsubscribe();
 
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const total = snap.docs.reduce((acc, doc) => {
-        const tx = doc.data() as Transaction;
-        if (tx.type === "reward" || tx.type === "commission") {
-          return acc + tx.amount;
-        }
-        return acc;
-      }, 0);
-      setTodayProfit(total);
-    }, (error) => {
-      console.error("Error fetching today profit:", error);
-    });
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
-    return () => unsubscribe();
+      const q = query(
+        collection(db, "transactions"),
+        where("userId", "==", profile.uid),
+        where("createdAt", ">=", startOfDay.getTime())
+      );
+
+      unsubscribe = onSnapshot(q, (snap) => {
+        const total = snap.docs.reduce((acc, doc) => {
+          const tx = doc.data() as Transaction;
+          if (tx.type === "reward" || tx.type === "commission") {
+            return acc + tx.amount;
+          }
+          return acc;
+        }, 0);
+        setTodayProfit(total);
+      }, (error) => {
+        console.error("Error fetching today profit:", error);
+      });
+    };
+
+    startListening();
+
+    // Check for midnight reset
+    const interval = setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        startListening();
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      clearInterval(interval);
+    };
   }, [profile]);
 
   return (

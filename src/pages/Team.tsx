@@ -28,22 +28,27 @@ export default function Team({ profile }: TeamProps) {
       console.error("Error fetching team count:", error);
     });
 
-    // Fetch total commission
-    const qComm = query(
+    // Fetch total profit (reward + commission)
+    const qProfit = query(
       collection(db, "transactions"), 
-      where("userId", "==", profile.uid),
-      where("type", "==", "commission")
+      where("userId", "==", profile.uid)
     );
-    const unsubComm = onSnapshot(qComm, (snapshot) => {
-      const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().amount || 0), 0);
+    const unsubProfit = onSnapshot(qProfit, (snapshot) => {
+      const total = snapshot.docs.reduce((acc, doc) => {
+        const tx = doc.data();
+        if (tx.type === "reward" || tx.type === "commission") {
+          return acc + (tx.amount || 0);
+        }
+        return acc;
+      }, 0);
       setTotalCommission(total);
     }, (error) => {
-      console.error("Error fetching team commissions:", error);
+      console.error("Error fetching total profit:", error);
     });
 
     return () => {
       unsubTeam();
-      unsubComm();
+      unsubProfit();
     };
   }, [profile]);
 
