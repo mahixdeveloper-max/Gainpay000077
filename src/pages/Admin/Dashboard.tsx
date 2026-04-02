@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [newOrderUpiId, setNewOrderUpiId] = useState("");
   const [newOrderRewardPercent, setNewOrderRewardPercent] = useState("4.5");
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editBalance, setEditBalance] = useState("");
   const [customMinutes, setCustomMinutes] = useState("30");
   const [searchTerm, setSearchTerm] = useState("");
@@ -339,11 +340,9 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteBuyOption = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this order?")) return;
     try {
-      // For simplicity, we'll just mark it as sold or similar, but let's just delete it if available
-      // Actually, deleting is fine for available ones
-      await updateDoc(doc(db, "buyOptions", id), { status: "sold" }); // Or deleteDoc
+      await updateDoc(doc(db, "buyOptions", id), { status: "sold" });
+      setDeleteConfirmId(null);
       alert("Order removed.");
     } catch (error) {
       console.error("Error deleting order:", error);
@@ -488,12 +487,29 @@ export default function AdminDashboard() {
                         <p className="text-lg font-black text-gray-900">₹{o.amount} <span className="text-xs text-green-600 ml-2">+{o.rewardPercent || 4.5}%</span></p>
                         {o.upiId && <p className="text-[10px] font-bold text-blue-500">{o.upiId}</p>}
                       </div>
-                      <button 
-                        onClick={() => handleDeleteBuyOption(o.id)}
-                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {deleteConfirmId === o.id ? (
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={() => handleDeleteBuyOption(o.id)}
+                            className="px-3 py-1 bg-red-600 text-white text-[10px] font-black rounded-lg uppercase"
+                          >
+                            Confirm
+                          </button>
+                          <button 
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="px-3 py-1 bg-gray-100 text-gray-600 text-[10px] font-black rounded-lg uppercase"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => setDeleteConfirmId(o.id)}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   ))}
                   {buyOptions.filter(o => o.status === "available").length === 0 && (

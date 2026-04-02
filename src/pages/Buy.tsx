@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, AppSettings, BuyOption } from "../types";
 import { QRCodeSVG } from "qrcode.react";
-import { Copy, Download, Search, ChevronUp, ChevronDown, Globe, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { Copy, Download, Search, ChevronUp, ChevronDown, Globe, X, CheckCircle2, AlertCircle, Upload } from "lucide-react";
 import { cn } from "../lib/utils";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { collection, addDoc, doc, onSnapshot, updateDoc } from "firebase/firestore";
@@ -23,6 +23,7 @@ export default function Buy({ profile, settings }: BuyProps) {
   const [success, setSuccess] = useState(false);
   const [buyOptions, setBuyOptions] = useState<BuyOption[]>([]);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsubOptions = onSnapshot(collection(db, "buyOptions"), (snap) => {
@@ -162,7 +163,7 @@ export default function Buy({ profile, settings }: BuyProps) {
           <div className="space-y-6">
             {/* UPI Tab Content */}
             <div className="space-y-4">
-              {buyOptions.filter(o => o.status === "available").sort((a, b) => a.amount - b.amount).map((option) => (
+              {buyOptions.filter(o => o.status === "available" && o.upiId !== profile?.upiId).sort((a, b) => a.amount - b.amount).map((option) => (
                 <div key={option.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
                   <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     <span>No:{option.orderNo}</span>
@@ -283,7 +284,7 @@ export default function Buy({ profile, settings }: BuyProps) {
       {/* UPI Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-6">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-200 relative overflow-hidden">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-200 relative overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar">
             {success ? (
               <div className="flex flex-col items-center justify-center py-10 space-y-4">
                 <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-600">
@@ -344,12 +345,13 @@ export default function Buy({ profile, settings }: BuyProps) {
                           type="file"
                           accept="image/*"
                           onChange={handleFileChange}
+                          ref={fileInputRef}
                           className="hidden"
                           id="screenshot-upload"
                           required={!utr}
                         />
-                        <label 
-                          htmlFor="screenshot-upload"
+                        <div 
+                          onClick={() => fileInputRef.current?.click()}
                           className={cn(
                             "w-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl py-8 px-4 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 transition-all",
                             screenshot && "border-blue-500 bg-blue-50"
@@ -362,11 +364,11 @@ export default function Buy({ profile, settings }: BuyProps) {
                             </div>
                           ) : (
                             <div className="flex flex-col items-center space-y-2">
-                              <Download size={24} className="text-gray-400" />
+                              <Upload size={24} className="text-gray-400" />
                               <span className="text-[10px] font-black text-gray-400 uppercase">Click to upload screenshot</span>
                             </div>
                           )}
-                        </label>
+                        </div>
                       </div>
                     </div>
                     

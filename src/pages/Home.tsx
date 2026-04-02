@@ -108,15 +108,15 @@ export default function Home({ profile, settings }: HomeProps) {
 
   const openTelegram = (url: string) => {
     if (!url) return;
-    // Force open in external browser (Chrome/Default) using Android Intent
-    if (/Android/i.test(navigator.userAgent)) {
-      const cleanUrl = url.replace(/^https?:\/\//, '');
-      // This intent format specifically tells Android to open the URL in an external browser
-      const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-      window.location.href = intentUrl;
-    } else {
-      window.location.href = url;
-    }
+    // For Android APK/WebView, we want to force opening in an external browser (Chrome)
+    // Using a hidden anchor tag with target="_blank" is often more reliable in WebViews
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (

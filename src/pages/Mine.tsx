@@ -51,15 +51,15 @@ export default function Mine({ profile, settings }: MineProps) {
 
   const openTelegram = (url: string) => {
     if (!url) return;
-    // Force open in external browser (Chrome/Default) using Android Intent
-    if (/Android/i.test(navigator.userAgent)) {
-      const cleanUrl = url.replace(/^https?:\/\//, '');
-      // This intent format specifically tells Android to open the URL in an external browser
-      const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-      window.location.href = intentUrl;
-    } else {
-      window.location.href = url;
-    }
+    // For Android APK/WebView, we want to force opening in an external browser (Chrome)
+    // Using a hidden anchor tag with target="_blank" is often more reliable in WebViews
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleSignOut = async () => {
@@ -118,14 +118,14 @@ export default function Mine({ profile, settings }: MineProps) {
           <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 border-4 border-white shadow-md">
             <User size={40} />
           </div>
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-1">
             <div className="flex justify-between items-center">
-              <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{profile?.phone || "N/A"}</p>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Reward:{settings?.globalRewardPercent || 4.5}%</p>
+              <p className="text-sm font-black text-gray-900 uppercase tracking-tight italic">ID: {profile?.uid?.slice(-8).toUpperCase() || "N/A"}</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reward:{settings?.globalRewardPercent || 4.5}%</p>
             </div>
             <div className="flex justify-between items-center">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Phone: {profile?.phone || "N/A"}</p>
-              <ChevronRight size={20} className="text-gray-300" />
+              <p className="text-xs font-black text-gray-500 uppercase tracking-widest">PHONE: {profile?.phone || "N/A"}</p>
+              <ChevronRight size={16} className="text-gray-300" />
             </div>
           </div>
         </div>
