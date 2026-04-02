@@ -16,15 +16,14 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [hasPurchased5000, setHasPurchased5000] = useState(false);
 
-  const openTelegram = (url: string) => {
+  const openTelegram = (url: string, isChannel = false) => {
     if (!url) return;
-    const username = url.split('/').pop()?.replace('@', '');
-    if (username && /Android/i.test(navigator.userAgent)) {
-      const intentUrl = `intent://resolve?domain=${username}#Intent;scheme=tg;package=org.telegram.messenger;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-      window.location.href = intentUrl;
-    } else {
-      window.location.href = url;
+    let finalUrl = url;
+    // Use /s/ for channels/groups to avoid tg:// redirect error in WebViews
+    if (isChannel && url.includes('t.me/') && !url.includes('t.me/s/')) {
+      finalUrl = url.replace('t.me/', 't.me/s/');
     }
+    window.location.href = finalUrl;
   };
 
   React.useEffect(() => {
@@ -72,7 +71,7 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
       color: "text-blue-500", 
       bg: "bg-blue-50", 
       status: profile?.completedTasks?.includes("subscribe") ? "Done" : "Pending",
-      action: () => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel"),
+      action: () => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel", true),
       autoComplete: true
     },
     { 
@@ -82,7 +81,7 @@ export default function EventCenter({ profile, settings }: EventCenterProps) {
       color: "text-blue-400", 
       bg: "bg-blue-50", 
       status: profile?.completedTasks?.includes("join_vip") ? "Done" : "Pending",
-      action: () => openTelegram(settings?.telegramGroupUrl || "https://t.me/gainpayy"),
+      action: () => openTelegram(settings?.telegramGroupUrl || "https://t.me/gainpayy", true),
       autoComplete: true
     },
     { 

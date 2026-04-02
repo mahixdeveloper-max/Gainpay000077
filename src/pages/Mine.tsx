@@ -49,15 +49,14 @@ export default function Mine({ profile, settings }: MineProps) {
     return () => unsubscribe();
   }, [profile]);
 
-  const openTelegram = (url: string) => {
+  const openTelegram = (url: string, isChannel = false) => {
     if (!url) return;
-    const username = url.split('/').pop()?.replace('@', '');
-    if (username && /Android/i.test(navigator.userAgent)) {
-      const intentUrl = `intent://resolve?domain=${username}#Intent;scheme=tg;package=org.telegram.messenger;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-      window.location.href = intentUrl;
-    } else {
-      window.location.href = url;
+    let finalUrl = url;
+    // Use /s/ for channels/groups to avoid tg:// redirect error in WebViews
+    if (isChannel && url.includes('t.me/') && !url.includes('t.me/s/')) {
+      finalUrl = url.replace('t.me/', 't.me/s/');
     }
+    window.location.href = finalUrl;
   };
 
   const handleSignOut = async () => {
@@ -294,7 +293,7 @@ export default function Mine({ profile, settings }: MineProps) {
                       Contact {settings?.telegramSupportId || "@gainpay1"}
                     </button>
                     <button 
-                      onClick={() => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel")}
+                      onClick={() => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel", true)}
                       className="block w-full bg-blue-600 text-white py-3 rounded-xl text-[10px] font-black text-center border border-blue-500 hover:bg-blue-700 transition-all uppercase tracking-widest"
                     >
                       Join Official Channel
