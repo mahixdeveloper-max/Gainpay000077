@@ -19,12 +19,15 @@ import Register from "./pages/Register";
 import AdminDashboard from "./pages/Admin/Dashboard";
 import AdminLogin from "./pages/Admin/Login";
 import Layout from "./components/Layout";
+import SplashScreen from "./components/SplashScreen";
+import { AnimatePresence } from "motion/react";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | undefined;
@@ -83,11 +86,16 @@ export default function App() {
     };
   }, []);
 
-  if (loading) {
+  if (loading || showSplash) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <AnimatePresence>
+        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+        {loading && !showSplash && (
+          <div className="flex items-center justify-center h-screen bg-gray-50">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+      </AnimatePresence>
     );
   }
 
