@@ -106,14 +106,17 @@ export default function Home({ profile, settings }: HomeProps) {
     };
   }, [profile]);
 
-  const openTelegram = (url: string, isChannel = false) => {
+  const openTelegram = (url: string) => {
     if (!url) return;
-    let finalUrl = url;
-    // Use /s/ for channels/groups to avoid tg:// redirect error in WebViews
-    if (isChannel && url.includes('t.me/') && !url.includes('t.me/s/')) {
-      finalUrl = url.replace('t.me/', 't.me/s/');
+    // Force open in external browser (Chrome/Default) using Android Intent
+    if (/Android/i.test(navigator.userAgent)) {
+      const cleanUrl = url.replace(/^https?:\/\//, '');
+      // This intent format specifically tells Android to open the URL in an external browser
+      const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+      window.location.href = intentUrl;
+    } else {
+      window.location.href = url;
     }
-    window.location.href = finalUrl;
   };
 
   return (
@@ -203,10 +206,8 @@ export default function Home({ profile, settings }: HomeProps) {
         </div>
       </div>
 
-      {/* Official Links */}
-      <div className="grid grid-cols-2 gap-4">
         <button 
-          onClick={() => openTelegram(settings?.telegramGroupUrl || "https://t.me/gainpayy", true)}
+          onClick={() => openTelegram(settings?.telegramGroupUrl || "https://t.me/gainpayy")}
           className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors w-full text-left"
         >
           <div className="flex items-center space-x-3">
@@ -217,7 +218,7 @@ export default function Home({ profile, settings }: HomeProps) {
         </button>
 
         <button 
-          onClick={() => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel", true)}
+          onClick={() => openTelegram(settings?.telegramChannelUrl || "https://t.me/gainpayofficialchanel")}
           className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors w-full text-left"
         >
           <div className="flex items-center space-x-3">
@@ -226,7 +227,6 @@ export default function Home({ profile, settings }: HomeProps) {
           </div>
           <ChevronRight size={14} className="text-gray-300" />
         </button>
-      </div>
 
       {/* News */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6">
