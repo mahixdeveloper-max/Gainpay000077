@@ -108,15 +108,35 @@ export default function Home({ profile, settings }: HomeProps) {
 
   const openTelegram = (url: string) => {
     if (!url) return;
+    
     // For Android APK/WebView, we want to force opening in an external browser (Chrome)
-    // Using a hidden anchor tag with target="_blank" is often more reliable in WebViews
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // We try multiple methods to ensure it opens outside the app
+    
+    // Method 1: Standard window.open
+    const newWindow = window.open(url, '_blank');
+    
+    // Method 2: Hidden anchor tag (often more reliable in WebViews)
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    // Method 3: Fallback for some Android WebViews to force Chrome
+    // This is a bit aggressive but matches "redirect to chrome" request
+    if (navigator.userAgent.toLowerCase().includes('android')) {
+      setTimeout(() => {
+        // If we're still here, try the location.href as a last resort
+        // but only if it's a telegram link
+        if (url.includes('t.me')) {
+          window.location.href = url;
+        }
+      }, 500);
+    }
   };
 
   return (

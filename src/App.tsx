@@ -20,7 +20,7 @@ import AdminDashboard from "./pages/Admin/Dashboard";
 import AdminLogin from "./pages/Admin/Login";
 import Layout from "./components/Layout";
 import SplashScreen from "./components/SplashScreen";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence } from "framer-motion";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -86,48 +86,41 @@ export default function App() {
     };
   }, []);
 
-  if (loading || showSplash) {
-    return (
-      <AnimatePresence>
-        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
-        {loading && !showSplash && (
-          <div className="flex items-center justify-center h-screen bg-gray-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        )}
-      </AnimatePresence>
-    );
-  }
-
-  // Logic for redirection
-  // 1. If not logged in -> can only access /login, /register, /admin
-  // 2. If logged in but no profile -> must go to /register to complete setup
-  // 3. If logged in and has profile -> can access everything
-
   return (
     <ErrorBoundary>
-      <Router>
-        <Routes>
-          <Route path="/login" element={!user ? <Login /> : (profile ? <Navigate to="/" /> : <Navigate to="/register" />)} />
-          <Route path="/register" element={!profile ? <Register /> : <Navigate to="/" />} />
-          
-          <Route element={user ? (profile ? <Layout profile={profile} /> : <Navigate to="/register" />) : <Navigate to="/login" />}>
-            <Route path="/" element={<Home profile={profile} settings={settings} />} />
-            <Route path="/buy" element={<Buy profile={profile} settings={settings} />} />
-            <Route path="/upi" element={<UPI profile={profile} settings={settings} />} />
-            <Route path="/team" element={<Team profile={profile} />} />
-            <Route path="/mine" element={<Mine profile={profile} settings={settings} />} />
-            <Route path="/history" element={<History profile={profile} />} />
-            <Route path="/event-center" element={<EventCenter profile={profile} settings={settings} />} />
-          </Route>
+      <AnimatePresence mode="wait">
+        {showSplash ? (
+          <SplashScreen key="splash" onFinish={() => setShowSplash(false)} />
+        ) : loading ? (
+          <div key="loading" className="flex items-center justify-center h-screen bg-gray-50 flex-col space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Initializing Secure Session...</p>
+          </div>
+        ) : (
+          <Router key="main-app">
+            <Routes>
+              <Route path="/login" element={!user ? <Login /> : (profile ? <Navigate to="/" /> : <Navigate to="/register" />)} />
+              <Route path="/register" element={!profile ? <Register /> : <Navigate to="/" />} />
+              
+              <Route element={user ? (profile ? <Layout profile={profile} /> : <Navigate to="/register" />) : <Navigate to="/login" />}>
+                <Route path="/" element={<Home profile={profile} settings={settings} />} />
+                <Route path="/buy" element={<Buy profile={profile} settings={settings} />} />
+                <Route path="/upi" element={<UPI profile={profile} settings={settings} />} />
+                <Route path="/team" element={<Team profile={profile} />} />
+                <Route path="/mine" element={<Mine profile={profile} settings={settings} />} />
+                <Route path="/history" element={<History profile={profile} />} />
+                <Route path="/event-center" element={<EventCenter profile={profile} settings={settings} />} />
+              </Route>
 
-          <Route path="/admin" element={<AdminLogin />} />
-          <Route 
-            path="/admin/dashboard" 
-            element={profile?.role === "admin" ? <AdminDashboard /> : <Navigate to="/admin" />} 
-          />
-        </Routes>
-      </Router>
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route 
+                path="/admin/dashboard" 
+                element={profile?.role === "admin" ? <AdminDashboard /> : <Navigate to="/admin" />} 
+              />
+            </Routes>
+          </Router>
+        )}
+      </AnimatePresence>
     </ErrorBoundary>
   );
 }

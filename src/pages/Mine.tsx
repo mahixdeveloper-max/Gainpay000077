@@ -20,6 +20,7 @@ export default function Mine({ profile, settings }: MineProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
   const [todayProfit, setTodayProfit] = useState(0);
+  const [totalProfit, setTotalProfit] = useState(0);
 
   useEffect(() => {
     if (!profile) return;
@@ -27,13 +28,14 @@ export default function Mine({ profile, settings }: MineProps) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const q = query(
+    // Today Profit
+    const qToday = query(
       collection(db, "transactions"),
       where("userId", "==", profile.uid),
       where("createdAt", ">=", startOfDay.getTime())
     );
 
-    const unsubscribe = onSnapshot(q, (snap) => {
+    const unsubToday = onSnapshot(qToday, (snap) => {
       const total = snap.docs.reduce((acc, doc) => {
         const tx = doc.data() as Transaction;
         if (tx.type === "reward" || tx.type === "commission") {
@@ -46,20 +48,62 @@ export default function Mine({ profile, settings }: MineProps) {
       console.error("Error fetching today profit:", error);
     });
 
-    return () => unsubscribe();
+    // Total Profit
+    const qTotal = query(
+      collection(db, "transactions"),
+      where("userId", "==", profile.uid)
+    );
+
+    const unsubTotal = onSnapshot(qTotal, (snap) => {
+      const total = snap.docs.reduce((acc, doc) => {
+        const tx = doc.data() as Transaction;
+        if (tx.type === "reward" || tx.type === "commission") {
+          return acc + tx.amount;
+        }
+        return acc;
+      }, 0);
+      setTotalProfit(total);
+    }, (error) => {
+      console.error("Error fetching total profit:", error);
+    });
+
+    return () => {
+      unsubToday();
+      unsubTotal();
+    };
   }, [profile]);
 
   const openTelegram = (url: string) => {
     if (!url) return;
+    
     // For Android APK/WebView, we want to force opening in an external browser (Chrome)
-    // Using a hidden anchor tag with target="_blank" is often more reliable in WebViews
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // We try multiple methods to ensure it opens outside the app
+    
+    // Method 1: Standard window.open
+    const newWindow = window.open(url, '_blank');
+    
+    // Method 2: Hidden anchor tag (often more reliable in WebViews)
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    // Method 3: Fallback for some Android WebViews to force Chrome
+    // This is a bit aggressive but matches "redirect to chrome" request
+    if (navigator.userAgent.toLowerCase().includes('android')) {
+      setTimeout(() => {
+        // If we're still here, try the location.href as a last resort
+        // but only if it's a telegram link
+        if (url.includes('t.me')) {
+          window.location.href = url;
+        }
+      }, 500);
+    }
   };
 
   const handleSignOut = async () => {
@@ -97,6 +141,7 @@ export default function Mine({ profile, settings }: MineProps) {
   const menuItems = [
     { name: "IToken", value: profile?.balance?.toFixed(2) || "0.00", icon: Wallet, color: "text-green-600", bg: "bg-green-50", path: "/history" },
     { name: "Today Profit", value: `₹${todayProfit.toFixed(2)}`, icon: TrendingUp, color: "text-orange-500", bg: "bg-orange-50", path: "/history" },
+    { name: "Total Profit", value: `₹${totalProfit.toFixed(2)}`, icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50", path: "/history" },
     { name: "UPI Sell History", icon: History, color: "text-blue-500", bg: "bg-blue-50", path: "/history" },
     { name: "Buy History", icon: Calendar, color: "text-blue-600", bg: "bg-blue-50", path: "/history" },
     { name: "Transfer IToken History", icon: History, color: "text-blue-400", bg: "bg-blue-50", path: "/history" },

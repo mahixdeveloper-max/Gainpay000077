@@ -348,12 +348,11 @@ export default function Buy({ profile, settings }: BuyProps) {
                           ref={fileInputRef}
                           className="hidden"
                           id="screenshot-upload"
-                          required={!utr}
                         />
-                        <div 
-                          onClick={() => fileInputRef.current?.click()}
+                        <label 
+                          htmlFor="screenshot-upload"
                           className={cn(
-                            "w-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl py-8 px-4 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 transition-all",
+                            "w-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl py-8 px-4 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 transition-all block",
                             screenshot && "border-blue-500 bg-blue-50"
                           )}
                         >
@@ -368,7 +367,7 @@ export default function Buy({ profile, settings }: BuyProps) {
                               <span className="text-[10px] font-black text-gray-400 uppercase">Click to upload screenshot</span>
                             </div>
                           )}
-                        </div>
+                        </label>
                       </div>
                     </div>
                     

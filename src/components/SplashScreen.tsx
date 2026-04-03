@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Wallet } from "lucide-react";
 
 export default function SplashScreen({ onFinish }: { onFinish: () => void }) {

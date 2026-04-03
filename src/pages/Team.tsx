@@ -11,6 +11,9 @@ interface TeamProps {
 
 export default function Team({ profile }: TeamProps) {
   const [teamCount, setTeamCount] = useState(0);
+  const [level1Count, setLevel1Count] = useState(0);
+  const [level2Count, setLevel2Count] = useState(0);
+  const [level3Count, setLevel3Count] = useState(0);
   const [totalCommission, setTotalCommission] = useState(0);
   const [todayProfit, setTodayProfit] = useState(0);
   const [showQR, setShowQR] = useState(false);
@@ -21,13 +24,45 @@ export default function Team({ profile }: TeamProps) {
   useEffect(() => {
     if (!profile?.referralCode || !profile?.uid) return;
 
-    // Fetch team count (Level 1)
-    const qTeam = query(collection(db, "users"), where("referredBy", "==", profile.referralCode));
-    const unsubTeam = onSnapshot(qTeam, (snapshot) => {
-      setTeamCount(snapshot.size);
-    }, (error) => {
-      console.error("Error fetching team count:", error);
-    });
+    // Fetch team count (3 Levels)
+    const fetchTeam = async () => {
+      try {
+        // Level 1
+        const q1 = query(collection(db, "users"), where("referredBy", "==", profile.referralCode));
+        const snap1 = await getDocs(q1);
+        const l1Users = snap1.docs.map(d => d.data());
+        setLevel1Count(snap1.size);
+
+        if (snap1.size > 0) {
+          const l1Codes = l1Users.map(u => u.referralCode).filter(Boolean);
+          // Level 2
+          const q2 = query(collection(db, "users"), where("referredBy", "in", l1Codes));
+          const snap2 = await getDocs(q2);
+          const l2Users = snap2.docs.map(d => d.data());
+          setLevel2Count(snap2.size);
+
+          if (snap2.size > 0) {
+            const l2Codes = l2Users.map(u => u.referralCode).filter(Boolean);
+            // Level 3
+            const q3 = query(collection(db, "users"), where("referredBy", "in", l2Codes));
+            const snap3 = await getDocs(q3);
+            setLevel3Count(snap3.size);
+            setTeamCount(snap1.size + snap2.size + snap3.size);
+          } else {
+            setLevel3Count(0);
+            setTeamCount(snap1.size + snap2.size);
+          }
+        } else {
+          setLevel2Count(0);
+          setLevel3Count(0);
+          setTeamCount(0);
+        }
+      } catch (error) {
+        console.error("Error fetching team:", error);
+      }
+    };
+
+    fetchTeam();
 
     // Fetch total profit (reward + commission)
     const qProfit = query(
@@ -69,7 +104,6 @@ export default function Team({ profile }: TeamProps) {
     });
 
     return () => {
-      unsubTeam();
       unsubProfit();
       unsubTodayProfit();
     };
@@ -137,7 +171,7 @@ export default function Team({ profile }: TeamProps) {
               <p className="text-xs font-black text-gray-800 uppercase tracking-tight">My Total Profit</p>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-black text-blue-600">₹{todayProfit.toFixed(2)}</span>
+              <span className="text-sm font-black text-blue-600">₹{totalCommission.toFixed(2)}</span>
               <ChevronRight size={16} className="text-gray-300" />
             </div>
           </div>
