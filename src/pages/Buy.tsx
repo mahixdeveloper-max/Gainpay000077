@@ -24,6 +24,7 @@ export default function Buy({ profile, settings }: BuyProps) {
   const [buyOptions, setBuyOptions] = useState<BuyOption[]>([]);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedFileRef = useRef<File | null>(null);
 
   useEffect(() => {
     const unsubOptions = onSnapshot(collection(db, "buyOptions"), (snap) => {
@@ -39,11 +40,10 @@ export default function Buy({ profile, settings }: BuyProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setScreenshot(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      selectedFileRef.current = file;
+      // Immediate preview using Object URL
+      const objectUrl = URL.createObjectURL(file);
+      setScreenshot(objectUrl);
     }
   };
 
@@ -60,18 +60,32 @@ export default function Buy({ profile, settings }: BuyProps) {
 
   const handleConfirmBuy = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile || (!utr && !screenshot)) return;
+    if (!profile) return;
+
+    if (!utr && !screenshot) {
+      alert("Please provide either a Transaction ID (UTR) or a payment screenshot.");
+      return;
+    }
 
     setLoading(true);
     const path = "buyRequests";
     try {
-      let finalScreenshot = screenshot || "";
+      let finalScreenshot = "";
+
+      if (selectedFileRef.current) {
+        finalScreenshot = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(selectedFileRef.current!);
+        });
+      }
 
       // Upload to ImgBB if API key is present
-      if (screenshot && settings?.imgbbApiKey) {
+      if (finalScreenshot && settings?.imgbbApiKey) {
         try {
           // Remove data:image/xxx;base64, prefix
-          const base64Data = screenshot.split(",")[1];
+          const base64Data = finalScreenshot.split(",")[1];
           const formData = new FormData();
           formData.append("image", base64Data);
 
@@ -83,13 +97,9 @@ export default function Buy({ profile, settings }: BuyProps) {
           const result = await response.json();
           if (result.success) {
             finalScreenshot = result.data.url;
-          } else {
-            console.error("ImgBB upload failed:", result.error);
-            // Fallback to base64 if upload fails
           }
         } catch (uploadError) {
           console.error("Error uploading to ImgBB:", uploadError);
-          // Fallback to base64
         }
       }
 
@@ -121,6 +131,7 @@ export default function Buy({ profile, settings }: BuyProps) {
         setSuccess(false);
         setUtr("");
         setScreenshot(null);
+        selectedFileRef.current = null;
       }, 3000);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
@@ -339,20 +350,22 @@ export default function Buy({ profile, settings }: BuyProps) {
                     </div>
 
                     <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Transaction ID (UTR)</label>
+                      <input
+                        type="text"
+                        placeholder="Enter 12-digit UTR"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-4 px-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        value={utr}
+                        onChange={(e) => setUtr(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Upload Screenshot</label>
                       <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          ref={fileInputRef}
-                          className="hidden"
-                          id="screenshot-upload"
-                        />
-                        <label 
-                          htmlFor="screenshot-upload"
+                        <div 
                           className={cn(
-                            "w-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl py-8 px-4 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 transition-all block",
+                            "w-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl py-8 px-4 flex flex-col items-center justify-center transition-all",
                             screenshot && "border-blue-500 bg-blue-50"
                           )}
                         >
@@ -367,7 +380,14 @@ export default function Buy({ profile, settings }: BuyProps) {
                               <span className="text-[10px] font-black text-gray-400 uppercase">Click to upload screenshot</span>
                             </div>
                           )}
-                        </label>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          id="screenshot-upload"
+                        />
                       </div>
                     </div>
                     
