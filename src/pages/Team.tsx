@@ -1,6 +1,7 @@
 import { UserProfile } from "../types";
 import { ChevronRight, Copy, QrCode, User, Users as UsersIcon, TrendingUp, DollarSign, Award, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { db } from "../lib/firebase";
 import { collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
 import { QRCodeSVG } from "qrcode.react";
@@ -193,13 +194,13 @@ export default function Team({ profile }: TeamProps) {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-5 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-2">
+          <Link to="/my-team" className="p-5 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-2 active:scale-95 transition-transform block">
             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
               <UsersIcon size={20} />
             </div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Team Count</p>
             <p className="text-xl font-black text-gray-900 tracking-tighter">{teamCount}</p>
-          </div>
+          </Link>
 
           <div className="p-5 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-2">
             <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
@@ -230,7 +231,10 @@ export default function Team({ profile }: TeamProps) {
               <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
                 <Award size={20} />
               </div>
-              <p className="text-xs font-black text-gray-800 uppercase tracking-tight">Invite Rewards</p>
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-gray-800 uppercase tracking-tight">Invite Rewards</p>
+                <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">₹300 Reward on ₹5000 Buy</p>
+              </div>
             </div>
             <ChevronRight size={16} className="text-gray-300" />
           </div>
@@ -327,6 +331,12 @@ export default function Team({ profile }: TeamProps) {
                 <div className="w-8 h-8 bg-blue-600/20 rounded-xl flex items-center justify-center text-blue-400 text-[10px] font-black">L3</div>
                 <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
                   Level 3 Commission = Buy * <span className="text-orange-500">0.05 %</span>
+                </p>
+              </div>
+              <div className="flex items-center space-x-4 pt-2 border-t border-white/5">
+                <div className="w-8 h-8 bg-orange-500/20 rounded-xl flex items-center justify-center text-orange-500 text-[10px] font-black">🎁</div>
+                <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                  Invite Reward = <span className="text-orange-500">₹300</span> on ₹5000 Buy
                 </p>
               </div>
             </div>

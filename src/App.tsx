@@ -16,6 +16,7 @@ import History from "./pages/History";
 import EventCenter from "./pages/EventCenter";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import MyTeam from "./pages/MyTeam";
 import AdminDashboard from "./pages/Admin/Dashboard";
 import AdminLogin from "./pages/Admin/Login";
 import Layout from "./components/Layout";
@@ -107,6 +108,7 @@ export default function App() {
                 <Route path="/buy" element={<Buy profile={profile} settings={settings} />} />
                 <Route path="/upi" element={<UPI profile={profile} settings={settings} />} />
                 <Route path="/team" element={<Team profile={profile} />} />
+                <Route path="/my-team" element={<MyTeam profile={profile} />} />
                 <Route path="/mine" element={<Mine profile={profile} settings={settings} />} />
                 <Route path="/history" element={<History profile={profile} />} />
                 <Route path="/event-center" element={<EventCenter profile={profile} settings={settings} />} />

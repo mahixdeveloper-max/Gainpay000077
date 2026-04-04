@@ -185,6 +185,21 @@ export default function AdminDashboard() {
             const l1User = l1UserDoc.data() as UserProfile;
             const l1Commission = request.amount * 0.003; // 0.3%
 
+            // Invite Reward: 300 if buy >= 5000
+            if (request.amount >= 5000) {
+              await updateDoc(doc(db, "users", l1UserDoc.id), {
+                balance: increment(300)
+              });
+              await addDoc(collection(db, "transactions"), {
+                userId: l1UserDoc.id,
+                type: "reward",
+                amount: 300,
+                status: "completed",
+                createdAt: Date.now(),
+                description: `Invite reward for ${user.phone} buying ₹${request.amount}`
+              });
+            }
+
             if (l1Commission > 0) {
               await updateDoc(doc(db, "users", l1UserDoc.id), {
                 balance: increment(l1Commission)

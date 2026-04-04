@@ -151,7 +151,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
       allow update: if isAdmin() || 
                     (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) ||
-                    (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance']) && (request.resource.data.balance == resource.data.balance + 20 || request.resource.data.balance == resource.data.balance + 50));
+                    (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance']) && (request.resource.data.balance == resource.data.balance + 20 || request.resource.data.balance == resource.data.balance + 50 || request.resource.data.balance == resource.data.balance + 300));
     }
 
     // Transactions
