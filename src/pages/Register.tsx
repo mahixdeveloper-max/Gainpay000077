@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { auth, db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, query, where, getDocs, updateDoc, increment, addDoc } from "firebase/firestore";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Phone, Lock, User, CheckCircle2 } from "lucide-react";
 import { generateWallet, encryptPrivateKey } from "../lib/tron";
@@ -42,18 +42,55 @@ export default function Register() {
 
       const path = `users/${user.uid}`;
       try {
+        // 1. Create the new user with 50 rupees initial balance
         await setDoc(doc(db, "users", user.uid), {
           uid: user.uid,
           phone,
           walletAddress: wallet.address,
           encryptedPrivateKey,
-          balance: 0,
+          balance: 50,
           isBlocked: false,
           role: "user",
           createdAt: Date.now(),
           referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
           referredBy: referralCode || null,
         });
+
+        // 2. Add registration reward transaction
+        await addDoc(collection(db, "transactions"), {
+          userId: user.uid,
+          type: "reward",
+          amount: 50,
+          status: "completed",
+          createdAt: Date.now(),
+          description: "Registration Bonus",
+        });
+
+        // 3. Handle referral reward (Invite Reward)
+        if (referralCode) {
+          const referrerQuery = query(collection(db, "users"), where("referralCode", "==", referralCode));
+          const referrerSnap = await getDocs(referrerQuery);
+          
+          if (!referrerSnap.empty) {
+            const referrerDoc = referrerSnap.docs[0];
+            const referrerId = referrerDoc.id;
+            
+            // Credit referrer 20 rupees (Invite Reward)
+            await updateDoc(doc(db, "users", referrerId), {
+              balance: increment(20)
+            });
+
+            // Add reward transaction for referrer
+            await addDoc(collection(db, "transactions"), {
+              userId: referrerId,
+              type: "reward",
+              amount: 20,
+              status: "completed",
+              createdAt: Date.now(),
+              description: `Invite Reward (Referral: ${phone})`,
+            });
+          }
+        }
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, path);
       }

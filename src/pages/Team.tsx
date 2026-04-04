@@ -16,6 +16,7 @@ export default function Team({ profile }: TeamProps) {
   const [level3Count, setLevel3Count] = useState(0);
   const [totalCommission, setTotalCommission] = useState(0);
   const [todayProfit, setTodayProfit] = useState(0);
+  const [yesterdayTeamProfit, setYesterdayTeamProfit] = useState(0);
   const [showQR, setShowQR] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -31,31 +32,79 @@ export default function Team({ profile }: TeamProps) {
         const q1 = query(collection(db, "users"), where("referredBy", "==", profile.referralCode));
         const snap1 = await getDocs(q1);
         const l1Users = snap1.docs.map(d => d.data());
+        const l1Uids = snap1.docs.map(d => d.id);
         setLevel1Count(snap1.size);
+
+        let l2Uids: string[] = [];
+        let l3Uids: string[] = [];
 
         if (snap1.size > 0) {
           const l1Codes = l1Users.map(u => u.referralCode).filter(Boolean);
-          // Level 2
-          const q2 = query(collection(db, "users"), where("referredBy", "in", l1Codes));
-          const snap2 = await getDocs(q2);
-          const l2Users = snap2.docs.map(d => d.data());
-          setLevel2Count(snap2.size);
+          
+          // Helper to fetch in chunks of 10 (Firestore limit for 'in')
+          const fetchInChunks = async (collectionName: string, field: string, values: string[]) => {
+            const results: any[] = [];
+            for (let i = 0; i < values.length; i += 10) {
+              const chunk = values.slice(i, i + 10);
+              const q = query(collection(db, collectionName), where(field, "in", chunk));
+              const snap = await getDocs(q);
+              results.push(...snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
+            return results;
+          };
 
-          if (snap2.size > 0) {
+          // Level 2
+          const l2Users = await fetchInChunks("users", "referredBy", l1Codes);
+          l2Uids = l2Users.map(u => u.id);
+          setLevel2Count(l2Users.length);
+
+          if (l2Users.length > 0) {
             const l2Codes = l2Users.map(u => u.referralCode).filter(Boolean);
             // Level 3
-            const q3 = query(collection(db, "users"), where("referredBy", "in", l2Codes));
-            const snap3 = await getDocs(q3);
-            setLevel3Count(snap3.size);
-            setTeamCount(snap1.size + snap2.size + snap3.size);
+            const l3Users = await fetchInChunks("users", "referredBy", l2Codes);
+            l3Uids = l3Users.map(u => u.id);
+            setLevel3Count(l3Users.length);
+            setTeamCount(snap1.size + l2Users.length + l3Users.length);
           } else {
             setLevel3Count(0);
-            setTeamCount(snap1.size + snap2.size);
+            setTeamCount(snap1.size + l2Users.length);
           }
         } else {
           setLevel2Count(0);
           setLevel3Count(0);
           setTeamCount(0);
+        }
+
+        // Calculate Yesterday Team Profit
+        const yesterdayStart = new Date();
+        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+        yesterdayStart.setHours(0, 0, 0, 0);
+        const yesterdayEnd = new Date();
+        yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
+        yesterdayEnd.setHours(23, 59, 59, 999);
+
+        const allTeamUids = [...l1Uids, ...l2Uids, ...l3Uids];
+        if (allTeamUids.length > 0) {
+          let totalYesterday = 0;
+          // Fetch transactions for all team members in chunks
+          for (let i = 0; i < allTeamUids.length; i += 10) {
+            const chunk = allTeamUids.slice(i, i + 10);
+            const q = query(
+              collection(db, "transactions"),
+              where("userId", "in", chunk),
+              where("createdAt", ">=", yesterdayStart.getTime()),
+              where("createdAt", "<=", yesterdayEnd.getTime())
+            );
+            const snap = await getDocs(q);
+            totalYesterday += snap.docs.reduce((acc, doc) => {
+              const tx = doc.data();
+              if (tx.type === "reward" || tx.type === "commission") {
+                return acc + (tx.amount || 0);
+              }
+              return acc;
+            }, 0);
+          }
+          setYesterdayTeamProfit(totalYesterday);
         }
       } catch (error) {
         console.error("Error fetching team:", error);
@@ -194,7 +243,7 @@ export default function Team({ profile }: TeamProps) {
               <p className="text-xs font-black text-gray-800 uppercase tracking-tight">Yesterday Team</p>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-black text-blue-600">₹0.00</span>
+              <span className="text-sm font-black text-blue-600">₹{yesterdayTeamProfit.toFixed(2)}</span>
               <ChevronRight size={16} className="text-gray-300" />
             </div>
           </div>
@@ -204,14 +253,17 @@ export default function Team({ profile }: TeamProps) {
         <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm space-y-6">
           <div className="flex justify-between items-center">
             <p className="text-sm font-black text-gray-900 uppercase tracking-tight">Today Commission</p>
-            <span className="text-sm font-black text-orange-500 italic">₹0.00</span>
+            <span className="text-sm font-black text-orange-500 italic">₹{todayProfit.toFixed(2)}</span>
           </div>
           <div className="relative h-4 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-            <div className="absolute inset-y-0 left-0 w-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-1000" />
+            <div 
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-1000" 
+              style={{ width: `${Math.min((todayProfit / 500) * 100, 100)}%` }}
+            />
           </div>
           <div className="flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
             <span>0</span>
-            <span className="text-blue-600">Daily Tasks 0%</span>
+            <span className="text-blue-600">Daily Tasks {Math.min((todayProfit / 500) * 100, 100).toFixed(0)}%</span>
             <span>500</span>
           </div>
         </div>
@@ -274,7 +326,7 @@ export default function Team({ profile }: TeamProps) {
               <div className="flex items-center space-x-4">
                 <div className="w-8 h-8 bg-blue-600/20 rounded-xl flex items-center justify-center text-blue-400 text-[10px] font-black">L3</div>
                 <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
-                  Level 3 Commission = Buy * <span className="text-orange-500">0.0 %</span>
+                  Level 3 Commission = Buy * <span className="text-orange-500">0.05 %</span>
                 </p>
               </div>
             </div>

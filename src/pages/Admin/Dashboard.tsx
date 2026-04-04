@@ -206,6 +206,7 @@ export default function AdminDashboard() {
 
                 if (!l2Snap.empty) {
                   const l2UserDoc = l2Snap.docs[0];
+                  const l2User = l2UserDoc.data() as UserProfile;
                   const l2Commission = request.amount * 0.001; // 0.1%
 
                   if (l2Commission > 0) {
@@ -221,6 +222,32 @@ export default function AdminDashboard() {
                       createdAt: Date.now(),
                       description: `Level 2 referral commission from ${user.phone}`
                     });
+
+                    // 6. Referral Commission Logic (Level 3)
+                    if (l2User.referredBy) {
+                      const l3Query = query(collection(db, "users"), where("referralCode", "==", l2User.referredBy));
+                      const l3Snap = await getDocs(l3Query);
+
+                      if (!l3Snap.empty) {
+                        const l3UserDoc = l3Snap.docs[0];
+                        const l3Commission = request.amount * 0.0005; // 0.05%
+
+                        if (l3Commission > 0) {
+                          await updateDoc(doc(db, "users", l3UserDoc.id), {
+                            balance: increment(l3Commission)
+                          });
+
+                          await addDoc(collection(db, "transactions"), {
+                            userId: l3UserDoc.id,
+                            type: "commission",
+                            amount: l3Commission,
+                            status: "completed",
+                            createdAt: Date.now(),
+                            description: `Level 3 referral commission from ${user.phone}`
+                          });
+                        }
+                      }
+                    }
                   }
                 }
               }
